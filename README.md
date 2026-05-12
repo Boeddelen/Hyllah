@@ -20,7 +20,7 @@ This repository contains the new SaaS version. The original single-file app live
 |---|---|
 | Frontend + Backend | SvelteKit 2 (Svelte 5) |
 | Hosting | Cloudflare Pages (auto-deploys from this repo) |
-| Database | Supabase (PostgreSQL, EU Frankfurt region) |
+| Database | Supabase (PostgreSQL, EU Zürich region) |
 | Auth | Supabase Auth — magic-link email only |
 | Storage | Supabase Storage (cover art) |
 | Email | Resend (sends magic links from `noreply@retrovault.no`) |
