@@ -33,7 +33,7 @@
 
     <p class="lede">
       Retro Vault is free forever. No tiers, no upsell, no premium. It runs on a small server in
-      Frankfurt and the bills are modest, but they're real. If you've found this useful and want
+      Zürich and the bills are modest, but they're real. If you've found this useful and want
       to chip in, the jar is here.
     </p>
 
