@@ -1,5 +1,5 @@
 <script>
-  import { PUBLIC_PAYPAL_ME_LINK } from '$env/static/public';
+  import { PUBLIC_PAYPAL_ME_LINK } from '$env/dynamic/public';
 
   let { data } = $props();
 
