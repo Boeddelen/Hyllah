@@ -91,7 +91,7 @@
           <div class="feature-num">05</div>
           <h3>GDPR clean</h3>
           <p>
-            Built in Norway, hosted in Frankfurt. Magic-link login means we never store your password
+            Built in Norway, hosted in Zürich. Magic-link login means we never store your password
             because there isn't one. No tracking cookies.
           </p>
         </div>
