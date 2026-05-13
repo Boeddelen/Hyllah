@@ -18,7 +18,6 @@ export const handle = async ({ event, resolve }) => {
   });
 
   // safeGetSession — calls getUser() to validate the JWT, not just trust the cookie.
-  // This is important: getSession() alone is forgeable, getUser() actually verifies.
   event.locals.safeGetSession = async () => {
     const {
       data: { session }
