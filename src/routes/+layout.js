@@ -1,7 +1,7 @@
 // Runs on every page to provide auth state.
 
 import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr';
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/dynamic/public';
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
 /** @type {import('./$types').LayoutLoad} */
 export const load = async ({ data, depends, fetch }) => {
