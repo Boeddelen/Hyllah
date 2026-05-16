@@ -25,7 +25,7 @@ export const load = async ({ url, cookies, locals: { safeGetSession, supabase } 
 
   // User cancelled on Discogs' side
   if (denied) {
-    cookies.delete('rv_dg_req', { path: '/app/discogs' });
+    cookies.delete('rv_dg_req', { path: '/' });
     throw redirect(303, '/app/settings?discogs=cancelled');
   }
 
@@ -80,13 +80,13 @@ export const load = async ({ url, cookies, locals: { safeGetSession, supabase } 
     }
 
     // Clean up the request-token cookie
-    cookies.delete('rv_dg_req', { path: '/app/discogs' });
+    cookies.delete('rv_dg_req', { path: '/' });
 
     throw redirect(303, '/app/settings?discogs=connected');
   } catch (err) {
     if (err?.status && err?.location) throw err; // re-throw redirects
     console.error('Discogs callback failed:', err);
-    cookies.delete('rv_dg_req', { path: '/app/discogs' });
+    cookies.delete('rv_dg_req', { path: '/' });
     throw redirect(
       303,
       `/app/settings?discogs=error&detail=${encodeURIComponent(err.message ?? 'unknown')}`

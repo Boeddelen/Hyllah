@@ -93,7 +93,7 @@
         <div class="row actions-row">
           <form
             method="POST"
-            action="/app/discogs/disconnect"
+            action="?/disconnectDiscogs"
             onsubmit={(e) => {
               if (!confirm('Disconnect Discogs? You can reconnect any time.')) {
                 e.preventDefault();
@@ -112,9 +112,9 @@
           </div>
         </div>
         <div class="row actions-row">
-          <!-- Plain POST — no use:enhance. Browser must follow the external
-               redirect to discogs.com natively; enhance() breaks it. -->
-          <form method="POST" action="/app/discogs/connect">
+          <!-- Action on THIS page — no cross-route posting.
+               data-sveltekit-reload ensures browser handles the redirect natively. -->
+          <form method="POST" action="?/connectDiscogs" data-sveltekit-reload>
             <button type="submit" class="btn primary">
               Connect to Discogs →
             </button>
