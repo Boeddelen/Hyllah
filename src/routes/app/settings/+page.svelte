@@ -1,9 +1,10 @@
 <script>
-  import { enhance } from '$app/forms';
+  // NOTE: We do NOT import enhance here.
+  // The connect form must NOT use enhance — enhance intercepts redirects
+  // client-side via fetch, which cannot follow an external redirect to
+  // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
   let { data } = $props();
-
-  let connecting = $state(false);
 
   let banner = $derived.by(() => {
     switch (data.discogsStatus) {
@@ -93,10 +94,9 @@
           <form
             method="POST"
             action="/app/discogs/disconnect"
-            use:enhance={({ cancel }) => {
+            onsubmit={(e) => {
               if (!confirm('Disconnect Discogs? You can reconnect any time.')) {
-                cancel();
-                return;
+                e.preventDefault();
               }
             }}
           >
@@ -112,19 +112,11 @@
           </div>
         </div>
         <div class="row actions-row">
-          <form
-            method="POST"
-            action="/app/discogs/connect"
-            use:enhance={() => {
-              connecting = true;
-              return async ({ update }) => {
-                await update();
-                connecting = false;
-              };
-            }}
-          >
-            <button type="submit" class="btn primary" disabled={connecting}>
-              {connecting ? 'Redirecting...' : 'Connect to Discogs →'}
+          <!-- Plain POST — no use:enhance. Browser must follow the external
+               redirect to discogs.com natively; enhance() breaks it. -->
+          <form method="POST" action="/app/discogs/connect">
+            <button type="submit" class="btn primary">
+              Connect to Discogs →
             </button>
           </form>
         </div>
