@@ -1,7 +1,7 @@
 # Retro Vault
 
 > A quiet, private place for your music collection.
-> Open source · EU-hosted · Free · Self-hostable.
+> Open source · EU-hosted · Free forever · Self-hostable.
 
 ---
 

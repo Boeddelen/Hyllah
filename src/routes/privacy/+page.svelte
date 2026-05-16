@@ -89,7 +89,7 @@
     <section>
       <h2>Where your data lives</h2>
       <p>
-        All personal data is stored on servers in the European Union (Zürich, Switzerland),
+        All personal data is stored on servers in the European Union (Zürich, Germany),
         operated by Supabase Inc. as our data processor. Cover-art images are stored in the
         same region. We do not transfer data outside the EEA.
       </p>

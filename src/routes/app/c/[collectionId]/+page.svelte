@@ -1,21 +1,59 @@
 <script>
+  import { enhance } from '$app/forms';
+  import { invalidateAll } from '$app/navigation';
   import { FORMATS, shortCondition } from '$lib/formats';
+  import RecordModal from '$lib/components/RecordModal.svelte';
 
-  let { data } = $props();
+  let { data, form } = $props();
 
   let { collection, records } = $derived(data);
+
+  // Modal state
+  let modalOpen = $state(false);
+  let editingRecord = $state(null);
+
+  function openAdd() {
+    editingRecord = null;
+    modalOpen = true;
+  }
+
+  function openEdit(record) {
+    editingRecord = record;
+    modalOpen = true;
+  }
+
+  function onModalClose() {
+    modalOpen = false;
+    editingRecord = null;
+  }
 
   // Stats
   let totalCount = $derived(records.length);
   let totalValue = $derived(
     records.reduce((sum, r) => {
-      const val = r.value_override ?? (r.prices?.[r.condition] ? parseFloat(r.prices[r.condition]) : 0);
-      return sum + (val || 0);
+      const val =
+        r.value_override ??
+        (r.prices?.[r.condition] ? parseFloat(r.prices[r.condition]) : 0);
+      return sum + (Number(val) || 0);
     }, 0)
   );
   let totalPaid = $derived(
-    records.reduce((sum, r) => sum + (r.purchase_price ? parseFloat(r.purchase_price) : 0), 0)
+    records.reduce(
+      (sum, r) => sum + (r.purchase_price ? parseFloat(r.purchase_price) : 0),
+      0
+    )
   );
+
+  function formatPrice(n) {
+    if (!Number.isFinite(n) || n === 0) return '—';
+    return `€${n.toFixed(0)}`;
+  }
+
+  function formatNet(value, paid) {
+    const net = value - paid;
+    const sign = net > 0 ? '+' : net < 0 ? '−' : '';
+    return `${sign}€${Math.abs(net).toFixed(0)}`;
+  }
 </script>
 
 <svelte:head>
@@ -45,16 +83,20 @@
       <div class="stats-row">
         <div class="stat">
           <div class="stat-label">Paid</div>
-          <div class="stat-value">€{totalPaid.toFixed(0)}</div>
+          <div class="stat-value">{formatPrice(totalPaid)}</div>
         </div>
         <div class="stat">
           <div class="stat-label">Value now</div>
-          <div class="stat-value accent">€{totalValue.toFixed(0)}</div>
+          <div class="stat-value accent">{formatPrice(totalValue)}</div>
         </div>
         <div class="stat">
           <div class="stat-label">Net</div>
-          <div class="stat-value" class:positive={totalValue > totalPaid}>
-            {totalValue > totalPaid ? '+' : ''}€{(totalValue - totalPaid).toFixed(0)}
+          <div
+            class="stat-value"
+            class:positive={totalValue > totalPaid}
+            class:negative={totalValue < totalPaid}
+          >
+            {formatNet(totalValue, totalPaid)}
           </div>
         </div>
       </div>
@@ -62,10 +104,8 @@
   </header>
 
   <div class="page-actions">
-    <button class="btn primary" disabled title="Coming in next session">
-      ＋ Add record
-    </button>
-    <button class="btn ghost" disabled title="Coming in next session">
+    <button class="btn primary" onclick={openAdd}>＋ Add record</button>
+    <button class="btn ghost" disabled title="Coming in next phase">
       Search Discogs
     </button>
   </div>
@@ -74,38 +114,68 @@
     <div class="empty-state">
       <div class="empty-icon">🎵</div>
       <h2>Nothing on the shelf yet.</h2>
-      <p>
-        We'll be wiring up "Add record" in the next session. For now, this confirms your
-        collection is set up correctly and connected to the database.
-      </p>
+      <p>Click <strong>Add record</strong> to put the first one in.</p>
     </div>
   {:else}
     <div class="record-grid">
       {#each records as record (record.id)}
         <article class="record-card">
-          <div class="cover">
-            {#if record.image_url}
-              <img src={record.image_url} alt={`${record.artist} – ${record.title}`} />
-            {:else}
-              <div class="cover-placeholder">{FORMATS[record.format]?.icon ?? '🎵'}</div>
-            {/if}
-            <div class="cover-badge">{FORMATS[record.format]?.label}</div>
-          </div>
-          <div class="card-body">
-            <div class="card-artist">{record.artist}</div>
-            <div class="card-title">{record.title}</div>
-            <div class="card-meta">
-              {[record.label, record.year, record.genre].filter(Boolean).join(' · ')}
+          <button
+            class="card-clickable"
+            onclick={() => openEdit(record)}
+            aria-label="Edit {record.artist} – {record.title}"
+          >
+            <div class="cover">
+              {#if record.image_url}
+                <img src={record.image_url} alt={`${record.artist} – ${record.title}`} />
+              {:else}
+                <div class="cover-placeholder">{FORMATS[record.format]?.icon ?? '🎵'}</div>
+              {/if}
+              <div class="cover-badge">{FORMATS[record.format]?.label}</div>
             </div>
-            <div class="card-condition">
-              {shortCondition(record.condition)}
+            <div class="card-body">
+              <div class="card-artist">{record.artist}</div>
+              <div class="card-title">{record.title}</div>
+              <div class="card-meta">
+                {[record.label, record.year, record.genre].filter(Boolean).join(' · ') || '—'}
+              </div>
+              <div class="card-footer">
+                <span class="card-condition">{shortCondition(record.condition)}</span>
+                {#if record.value_override}
+                  <span class="card-value">€{Number(record.value_override).toFixed(0)}</span>
+                {/if}
+              </div>
             </div>
-          </div>
+          </button>
+
+          <form
+            method="POST"
+            action="?/delete"
+            class="delete-form"
+            use:enhance={({ cancel }) => {
+              if (!confirm(`Delete "${record.artist} – ${record.title}"?\n\nThis cannot be undone yet (undo coming soon).`)) {
+                cancel();
+                return;
+              }
+              return async ({ result }) => {
+                if (result.type === 'success') {
+                  await invalidateAll();
+                }
+              };
+            }}
+          >
+            <input type="hidden" name="id" value={record.id} />
+            <button type="submit" class="delete-btn" aria-label="Delete record" title="Delete">
+              ✕
+            </button>
+          </form>
         </article>
       {/each}
     </div>
   {/if}
 </div>
+
+<RecordModal bind:open={modalOpen} record={editingRecord} onclose={onModalClose} />
 
 <style>
   .page {
@@ -125,10 +195,7 @@
     flex-wrap: wrap;
   }
 
-  .header-main {
-    flex: 1;
-    min-width: 0;
-  }
+  .header-main { flex: 1; min-width: 0; }
 
   .collection-eyebrow {
     display: flex;
@@ -142,9 +209,7 @@
     margin-bottom: 14px;
   }
 
-  .collection-icon {
-    font-size: 14px;
-  }
+  .collection-icon { font-size: 14px; }
 
   h1 {
     font-family: var(--ff-display);
@@ -174,9 +239,7 @@
     align-items: baseline;
   }
 
-  .stat {
-    text-align: right;
-  }
+  .stat { text-align: right; }
 
   .stat-label {
     font-family: var(--ff-mono);
@@ -194,13 +257,9 @@
     color: var(--ink);
   }
 
-  .stat-value.accent {
-    color: var(--accent);
-  }
-
-  .stat-value.positive {
-    color: var(--success);
-  }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.positive { color: var(--success); }
+  .stat-value.negative { color: var(--danger); }
 
   .page-actions {
     display: flex;
@@ -217,9 +276,8 @@
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    transition:
-      background var(--t),
-      transform var(--t);
+    transition: background var(--t), transform var(--t);
+    border: 1px solid transparent;
   }
 
   .btn.primary {
@@ -231,15 +289,10 @@
     background: var(--ink);
   }
 
-  .btn.primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
   .btn.ghost {
     background: var(--bg-3);
     color: var(--ink-2);
-    border: 1px solid var(--groove);
+    border-color: var(--groove);
   }
 
   .btn.ghost:hover:not(:disabled) {
@@ -247,10 +300,7 @@
     border-color: var(--ink-3);
   }
 
-  .btn.ghost:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   /* ── Empty state ──────────────────────────────────── */
   .empty-state {
@@ -282,6 +332,12 @@
     line-height: 1.6;
   }
 
+  .empty-state strong {
+    color: var(--accent);
+    font-weight: 500;
+    font-style: normal;
+  }
+
   /* ── Record grid ──────────────────────────────────── */
   .record-grid {
     display: grid;
@@ -290,6 +346,7 @@
   }
 
   .record-card {
+    position: relative;
     background: var(--bg-2);
     border: 1px solid var(--groove);
     border-radius: var(--radius-lg);
@@ -302,6 +359,17 @@
   .record-card:hover {
     transform: translateY(-2px);
     border-color: var(--accent);
+  }
+
+  .card-clickable {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: block;
   }
 
   .cover {
@@ -381,29 +449,66 @@
     white-space: nowrap;
   }
 
+  .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid var(--groove);
+  }
+
   .card-condition {
     font-family: var(--ff-mono);
     font-size: 10px;
     color: var(--accent);
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    padding-top: 10px;
-    border-top: 1px solid var(--groove);
+  }
+
+  .card-value {
+    font-family: var(--ff-display);
+    font-size: 15px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .delete-form {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity var(--t);
+  }
+
+  .record-card:hover .delete-form {
+    opacity: 1;
+  }
+
+  .delete-btn {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--groove);
+    color: var(--ink-2);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background var(--t), color var(--t), border-color var(--t);
+  }
+
+  .delete-btn:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
   }
 
   @media (max-width: 840px) {
-    .page {
-      padding: 24px 22px 60px;
-    }
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .stats-row {
-      gap: 24px;
-    }
-    .stat-value {
-      font-size: 20px;
-    }
+    .page { padding: 24px 22px 60px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .stats-row { gap: 24px; }
+    .stat-value { font-size: 20px; }
+    .delete-form { opacity: 1; }  /* mobile: always visible since no hover */
   }
 </style>
