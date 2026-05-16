@@ -17,7 +17,7 @@
   <title>Support Retro Vault — Tip jar</title>
   <meta
     name="description"
-    content="Retro Vault is free forever. If you'd like to chip in, the tip jar is here."
+    content="Retro Vault is free. If you'd like to chip in, the tip jar is here."
   />
 </svelte:head>
 
@@ -31,7 +31,7 @@
     <h1>If it's <em>helpful</em>,<br />a tip is appreciated.</h1>
 
     <p class="lede">
-      Retro Vault is free forever. No tiers, no upsell, no premium. It runs on a small server in
+      Retro Vault is free. No tiers, no upsell, no premium. It runs on a small server in
       Zürich and the bills are modest, but they're real. If you've found this useful and want
       to chip in, the jar is here.
     </p>
@@ -75,7 +75,7 @@
       </ul>
     </div>
 
-    <p class="thanks">Thank you for being here. — Frederik</p>
+    <p class="thanks">Thank you for being here.</p>
   </div>
 </main>
 
