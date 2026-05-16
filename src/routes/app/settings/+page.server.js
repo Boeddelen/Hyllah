@@ -28,13 +28,27 @@ export const actions = {
     if (!user) throw redirect(303, '/login');
 
     const callbackUrl = `${PUBLIC_APP_URL}/app/discogs/callback`;
-    const { token, tokenSecret, authorizeUrl } = await getRequestToken(callbackUrl);
+
+    // Get request token — if this fails, redirect to settings with the error
+    // message visible so we can diagnose without needing server logs.
+    let requestTokenResult;
+    try {
+      requestTokenResult = await getRequestToken(callbackUrl);
+    } catch (err) {
+      console.error('Discogs getRequestToken failed:', err);
+      throw redirect(
+        303,
+        `/app/settings?discogs=error&detail=${encodeURIComponent(err.message ?? 'unknown error')}`
+      );
+    }
+
+    const { token, tokenSecret, authorizeUrl } = requestTokenResult;
 
     cookies.set(
       'rv_dg_req',
       JSON.stringify({ t: token, s: tokenSecret }),
       {
-        path: '/',          // broader path so callback route can read it
+        path: '/',
         httpOnly: true,
         secure: true,
         sameSite: 'lax',
@@ -42,6 +56,7 @@ export const actions = {
       }
     );
 
+    // This redirect MUST be outside try/catch — it throws internally
     throw redirect(303, authorizeUrl);
   },
 
