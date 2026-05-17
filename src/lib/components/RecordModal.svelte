@@ -27,6 +27,11 @@
   let submitting = $state(false);
   let errorMsg = $state('');
 
+  // Duplicate detection state
+  let duplicates = $state([]);
+  let showDuplicateWarning = $state(false);
+  let forceCreate = $state('');  // becomes "true" when user opts to add anyway
+
   // Reset/populate fields whenever the modal opens or record changes
   $effect(() => {
     if (open) {
@@ -57,6 +62,9 @@
       }
       errorMsg = '';
       submitting = false;
+      duplicates = [];
+      showDuplicateWarning = false;
+      forceCreate = '';
     }
   });
 
@@ -114,8 +122,15 @@
               open = false;
               onclose?.();
             } else if (result.type === 'failure') {
-              errorMsg = result.data?.error ?? 'Could not save record';
-              submitting = false;
+              // 409 = duplicate detection — show duplicates and offer to add anyway
+              if (result.status === 409 && result.data?.duplicates?.length) {
+                duplicates = result.data.duplicates;
+                showDuplicateWarning = true;
+                submitting = false;
+              } else {
+                errorMsg = result.data?.error ?? 'Could not save record';
+                submitting = false;
+              }
             } else {
               await update();
               submitting = false;
@@ -126,6 +141,8 @@
         {#if isEdit}
           <input type="hidden" name="id" value={record.id} />
         {/if}
+        <!-- Hidden flag: set to "true" to bypass duplicate warning -->
+        <input type="hidden" name="force" bind:value={forceCreate} />
 
         <div class="form-grid">
           <!-- Row 1: Artist + Title -->
@@ -273,7 +290,43 @@
           <div class="error">{errorMsg}</div>
         {/if}
 
-        <footer class="modal-footer">
+        {#if showDuplicateWarning}
+          <div class="duplicate-warning">
+            <div class="dup-header">
+              <strong>Looks like you may already have this.</strong>
+              <span class="dup-subtitle">Found {duplicates.length} similar record{duplicates.length === 1 ? '' : 's'} in your collection:</span>
+            </div>
+            <ul class="dup-list">
+              {#each duplicates as d}
+                <li>
+                  <span class="dup-artist">{d.artist}</span>
+                  <span class="dup-sep">·</span>
+                  <span class="dup-title">{d.title}</span>
+                  {#if d.year}<span class="dup-sep">·</span><span class="dup-year">{d.year}</span>{/if}
+                  {#if d.is_archived}<span class="dup-badge">archived</span>{/if}
+                </li>
+              {/each}
+            </ul>
+            <div class="dup-actions">
+              <button
+                type="button"
+                class="btn ghost"
+                onclick={() => { showDuplicateWarning = false; }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn primary"
+                onclick={() => { forceCreate = 'true'; }}
+              >
+                Add anyway
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        <footer class="modal-footer" class:hidden={showDuplicateWarning}>
           <button type="button" class="btn ghost" onclick={close} disabled={submitting}>
             Cancel
           </button>
@@ -493,6 +546,83 @@
     margin-top: 26px;
     padding-top: 22px;
     border-top: 1px solid var(--groove);
+  }
+
+  .modal-footer.hidden { display: none; }
+
+  /* ── Duplicate warning ──────────────────────────────── */
+  .duplicate-warning {
+    margin-top: 22px;
+    padding: 18px 20px;
+    background: rgba(212, 163, 86, 0.08);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+  }
+
+  .dup-header { margin-bottom: 12px; }
+  .dup-header strong {
+    font-family: var(--ff-display);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .dup-subtitle {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+
+  .dup-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dup-list li {
+    padding: 8px 12px;
+    background: var(--bg-3);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: var(--ff-display);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .dup-artist {
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .dup-title { color: var(--ink); }
+  .dup-year { color: var(--ink-3); font-size: 12px; }
+  .dup-sep { color: var(--ink-3); opacity: 0.5; }
+
+  .dup-badge {
+    margin-left: auto;
+    font-family: var(--ff-mono);
+    font-size: 8px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border: 1px solid var(--groove);
+    border-radius: 99px;
+    padding: 2px 8px;
+  }
+
+  .dup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
   }
 
   .btn {
