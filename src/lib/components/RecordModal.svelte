@@ -130,7 +130,11 @@
       const res = await fetch(`/api/discogs/autofill?releaseId=${release.id}`);
       if (!res.ok) {
         const txt = await res.text();
-        errorMsg = `Autofill failed: ${txt || res.status}`;
+        if (res.status === 429 || txt.includes('429') || txt.includes('too quickly')) {
+          errorMsg = 'Discogs is rate-limiting us. Wait a few seconds and try again.';
+        } else {
+          errorMsg = `Autofill failed: ${txt || res.status}`;
+        }
         return;
       }
       const data = await res.json();
@@ -200,6 +204,15 @@
     if (newIdx < 0 || newIdx >= tracks.length) return;
     const copy = [...tracks];
     [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
+    tracks = copy;
+    tracksDirty = true;
+  }
+  /** Immutable update of a single field on one track row.
+   *  Avoids Svelte 5 reactivity quirks with bind:value on nested properties. */
+  function updateTrackField(idx, field, value) {
+    if (idx < 0 || idx >= tracks.length) return;
+    const copy = [...tracks];
+    copy[idx] = { ...copy[idx], [field]: value };
     tracks = copy;
     tracksDirty = true;
   }
@@ -465,8 +478,8 @@
                   <input
                     class="track-pos"
                     type="text"
-                    bind:value={track.position}
-                    oninput={markTracksDirty}
+                    value={track.position ?? ''}
+                    oninput={(e) => updateTrackField(idx, 'position', e.currentTarget.value)}
                     maxlength="12"
                     placeholder="A1"
                     aria-label="Position"
@@ -474,8 +487,8 @@
                   <input
                     class="track-title"
                     type="text"
-                    bind:value={track.title}
-                    oninput={markTracksDirty}
+                    value={track.title ?? ''}
+                    oninput={(e) => updateTrackField(idx, 'title', e.currentTarget.value)}
                     maxlength="300"
                     placeholder="Track title"
                     aria-label="Title"
@@ -483,8 +496,8 @@
                   <input
                     class="track-dur"
                     type="text"
-                    bind:value={track.duration}
-                    oninput={markTracksDirty}
+                    value={track.duration ?? ''}
+                    oninput={(e) => updateTrackField(idx, 'duration', e.currentTarget.value)}
                     maxlength="12"
                     placeholder="3:42"
                     aria-label="Duration"

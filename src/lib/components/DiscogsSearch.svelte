@@ -4,11 +4,11 @@
    *
    * Props:
    *  - onselect: (release) => void — called when user picks a result.
-   *    `release` is the raw Discogs search result with id, title, year,
-   *    label, format, country, thumb, etc.
    *  - placeholder?: string
    *  - autofocus?: boolean
    */
+  import { onDestroy } from 'svelte';
+
   let { onselect, placeholder = 'Search Discogs (artist, title, label...)', autofocus = false } = $props();
 
   let query = $state('');
@@ -16,29 +16,58 @@
   let loading = $state(false);
   let error = $state('');
 
-  // Debounce timer — search fires 300ms after the user stops typing
+  // Debounce timer — search fires 500ms after the user stops typing.
+  // Bumped from 300ms to be gentler on the Discogs 60/min rate limit.
   let debounceId;
+  // Track active fetch so we can cancel obsolete ones on rapid typing
+  let abortController;
+  // Sequence number — only the latest search applies its results
+  let searchSeq = 0;
 
   function clearResults() {
     results = [];
     error = '';
   }
 
+  function cleanup() {
+    clearTimeout(debounceId);
+    debounceId = undefined;
+    if (abortController) {
+      abortController.abort();
+      abortController = undefined;
+    }
+  }
+
+  onDestroy(cleanup);
+
   async function runSearch(q) {
     if (q.length < 3) {
       clearResults();
       return;
     }
+    // Cancel any in-flight request
+    if (abortController) abortController.abort();
+    abortController = new AbortController();
+    const mySeq = ++searchSeq;
+
     loading = true;
     error = '';
     try {
-      const res = await fetch(`/api/discogs/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/discogs/search?q=${encodeURIComponent(q)}`, {
+        signal: abortController.signal
+      });
+
+      // If a newer search has started, abandon these results
+      if (mySeq !== searchSeq) return;
+
       if (!res.ok) {
         const body = await res.text();
         if (res.status === 403 && body.includes('NOT_CONNECTED')) {
           error = 'Discogs is not connected. Connect it in Settings.';
         } else if (res.status === 401) {
           error = 'Please sign in again.';
+        } else if (res.status === 429 || body.includes('429') || body.includes('too quickly')) {
+          error = 'Slow down — Discogs is rate-limiting us. Wait a few seconds and try again.';
         } else {
           error = `Search failed (${res.status})`;
         }
@@ -46,13 +75,16 @@
         return;
       }
       const data = await res.json();
+      if (mySeq !== searchSeq) return;
       results = data.results ?? [];
     } catch (err) {
+      // Aborted requests are expected — ignore
+      if (err?.name === 'AbortError') return;
       console.error('Discogs search error:', err);
       error = 'Could not reach Discogs. Try again.';
       results = [];
     } finally {
-      loading = false;
+      if (mySeq === searchSeq) loading = false;
     }
   }
 
@@ -60,22 +92,33 @@
     clearTimeout(debounceId);
     if (!query.trim()) {
       clearResults();
+      // Also cancel any in-flight request
+      if (abortController) {
+        abortController.abort();
+        abortController = undefined;
+      }
+      loading = false;
       return;
     }
-    debounceId = setTimeout(() => runSearch(query.trim()), 300);
+    debounceId = setTimeout(() => runSearch(query.trim()), 500);
   }
 
   function handleSelect(result) {
+    cleanup();
     onselect?.(result);
     // Clear after selection so the modal can refocus on form fields
     query = '';
     results = [];
+    loading = false;
+    error = '';
   }
 
   function handleKey(e) {
     if (e.key === 'Escape') {
+      cleanup();
       clearResults();
       query = '';
+      loading = false;
     }
   }
 

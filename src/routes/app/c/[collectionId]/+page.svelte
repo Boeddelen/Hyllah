@@ -18,6 +18,41 @@
   let pendingDelete = $state(null);
   // shape: { id, label, optimisticallyRemoved: boolean }
 
+  // ── Card showing all-conditions prices? ─────────
+  let pricesExpandedId = $state(null);
+
+  // Map condition codes (DB) to Discogs price keys (in the prices JSONB)
+  const CONDITION_TO_DISCOGS_KEY = {
+    M: 'Mint (M)',
+    NM: 'Near Mint (NM or M-)',
+    VG_PLUS: 'Very Good Plus (VG+)',
+    VG: 'Very Good (VG)',
+    G_PLUS: 'Good Plus (G+)',
+    G: 'Good (G)',
+    F: 'Fair (F)',
+    P: 'Poor (P)'
+  };
+
+  /** Return the Discogs price for the record's current condition, or null. */
+  function matchingPriceFor(record) {
+    if (!record?.prices || !record.condition) return null;
+    const key = CONDITION_TO_DISCOGS_KEY[record.condition];
+    if (!key) return null;
+    const p = record.prices[key];
+    if (!p) return null;
+    return typeof p === 'object' ? p.value : p;
+  }
+
+  /** Has Discogs price data at all? */
+  function hasPrices(record) {
+    return record?.prices && typeof record.prices === 'object' && Object.keys(record.prices).length > 0;
+  }
+
+  function togglePricesExpanded(record, e) {
+    e?.stopPropagation();
+    pricesExpandedId = pricesExpandedId === record.id ? null : record.id;
+  }
+
   // Records to show in the grid: filter out anything pending-delete optimistically
   let visibleRecords = $derived(
     pendingDelete?.optimisticallyRemoved
@@ -299,6 +334,34 @@
                   <span class="detail-label">Value</span>
                   <span class="detail-value accent">€{Number(record.value_override).toFixed(2)}</span>
                 </div>
+              {/if}
+              {#if hasPrices(record)}
+                {@const myPrice = matchingPriceFor(record)}
+                {#if myPrice}
+                  <div class="detail-row">
+                    <span class="detail-label">Discogs ({shortCondition(record.condition)})</span>
+                    <span class="detail-value">€{Number(myPrice).toFixed(2)}</span>
+                  </div>
+                {/if}
+                <div class="detail-row price-toggle-row">
+                  <button
+                    type="button"
+                    class="price-toggle-btn"
+                    onclick={(e) => togglePricesExpanded(record, e)}
+                  >
+                    {pricesExpandedId === record.id ? '× Hide all prices' : '+ All Discogs prices'}
+                  </button>
+                </div>
+                {#if pricesExpandedId === record.id}
+                  <div class="all-prices">
+                    {#each Object.entries(record.prices) as [cond, p]}
+                      <div class="all-prices-row">
+                        <span class="all-prices-cond">{cond}</span>
+                        <span class="all-prices-val">€{Number(typeof p === 'object' ? p.value : p).toFixed(2)}</span>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
               {/if}
               {#if record.tags?.length}
                 <div class="detail-row tags-row">
@@ -599,6 +662,48 @@
     margin-top: 4px;
   }
 
+  /* ── Price toggle / all-prices ───────────────────── */
+  .price-toggle-row { padding: 0; }
+  .price-toggle-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+    font-family: var(--ff-mono);
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: pointer;
+    transition: color var(--t);
+    text-align: center;
+  }
+  .price-toggle-btn:hover { color: var(--accent); }
+  .all-prices {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 8px;
+    background: var(--bg-3);
+    border-radius: var(--radius);
+  }
+  .all-prices-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+  }
+  .all-prices-cond {
+    font-family: var(--ff-mono);
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .all-prices-val {
+    font-family: var(--ff-display);
+    color: var(--ink);
+  }
   /* ── Back actions ────────────────────────────────── */
   .card-back-actions {
     display: flex;
