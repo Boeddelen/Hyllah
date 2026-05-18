@@ -4,6 +4,9 @@
   // client-side via fetch, which cannot follow an external redirect to
   // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
+  import { onMount } from 'svelte';
+  import { getTheme, setTheme } from '$lib/theme.js';
+
   let { data } = $props();
 
   const CARD_BACK_OPTIONS = [
@@ -14,6 +17,14 @@
 
   let cardBackView = $state(data.profile?.card_back_view ?? 'details');
   let savingPrefs = $state(false);
+
+  // Theme state — initialized after mount so SSR doesn't see the wrong value
+  let currentTheme = $state('dark');
+  onMount(() => { currentTheme = getTheme(); });
+  function switchTheme(t) {
+    currentTheme = t;
+    setTheme(t);
+  }
 
   let banner = $derived.by(() => {
     if (data.prefsStatus === 'saved') {
@@ -158,6 +169,31 @@
     <p class="lede">How records look in your collection.</p>
 
     <div class="card">
+      <!-- Theme toggle: local-only setting, no form submission needed -->
+      <div class="pref-row pref-row-bordered">
+        <div class="pref-label">Theme</div>
+        <div class="pref-options">
+          <button
+            type="button"
+            class="radio-pill"
+            class:checked={currentTheme === 'dark'}
+            onclick={() => switchTheme('dark')}
+          >
+            <span class="radio-text">Late night</span>
+            <span class="radio-hint">Dark mode — the original.</span>
+          </button>
+          <button
+            type="button"
+            class="radio-pill"
+            class:checked={currentTheme === 'light'}
+            onclick={() => switchTheme('light')}
+          >
+            <span class="radio-text">Daylight</span>
+            <span class="radio-hint">Light mode — warm paper.</span>
+          </button>
+        </div>
+      </div>
+
       <form
         method="POST"
         action="?/updatePreferences"
@@ -443,6 +479,10 @@
 
   /* ── Preferences ─────────────────────────────────── */
   .pref-row { padding: 16px 0; }
+  .pref-row-bordered {
+    border-bottom: 1px solid var(--groove);
+    margin-bottom: 8px;
+  }
   .pref-label {
     font-family: var(--ff-mono);
     font-size: 10px;
@@ -466,6 +506,10 @@
     border-radius: var(--radius);
     cursor: pointer;
     transition: border-color var(--t), background var(--t);
+    text-align: left;          /* button reset */
+    font: inherit;             /* button reset */
+    color: inherit;            /* button reset */
+    width: 100%;               /* button reset */
   }
   .radio-pill:hover { border-color: var(--ink-3); }
   .radio-pill.checked {

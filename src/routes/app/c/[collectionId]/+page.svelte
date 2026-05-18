@@ -69,6 +69,33 @@
     P: 'Poor (P)'
   };
 
+  // Quality-sorted Discogs keys, worst → best (Poor at top, Mint at bottom).
+  // Used when displaying the "All Discogs prices" panel on the card back.
+  const DISCOGS_KEY_ORDER = [
+    'Poor (P)',
+    'Fair (F)',
+    'Good (G)',
+    'Good Plus (G+)',
+    'Very Good (VG)',
+    'Very Good Plus (VG+)',
+    'Near Mint (NM or M-)',
+    'Mint (M)'
+  ];
+
+  /** Sort a prices object by quality order (Poor → Mint). Unknown keys fall through to the end. */
+  function sortedPrices(prices) {
+    if (!prices || typeof prices !== 'object') return [];
+    const entries = Object.entries(prices);
+    return entries.sort(([a], [b]) => {
+      const ia = DISCOGS_KEY_ORDER.indexOf(a);
+      const ib = DISCOGS_KEY_ORDER.indexOf(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
   /** Return the Discogs price for the record's current condition, or null. */
   function matchingPriceFor(record) {
     if (!record?.prices || !record.condition) return null;
@@ -392,7 +419,7 @@
                     </div>
                     {#if pricesExpandedId === record.id}
                       <div class="all-prices">
-                        {#each Object.entries(record.prices) as [cond, p]}
+                        {#each sortedPrices(record.prices) as [cond, p]}
                           <div class="all-prices-row">
                             <span class="all-prices-cond">{cond}</span>
                             <span class="all-prices-val">€{Number(typeof p === 'object' ? p.value : p).toFixed(2)}</span>

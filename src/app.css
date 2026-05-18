@@ -1,11 +1,11 @@
 /* ─────────────────────────────────────────────────────────────────────────
    RETRO VAULT — Global Styles
-   Defaults to the "Listening Room" aesthetic. We'll add theme switching
-   in a later session.
+   Two palettes: dark (default) and light. The user's choice is applied via
+   data-theme="light" on <html>. System preference is honored on first load.
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Listening Room — Late Night palette */
+  /* Listening Room — Late Night (dark, default) */
   --bg: #1a1612;
   --bg-2: #221d18;
   --bg-3: #2a241e;
@@ -28,6 +28,24 @@
   --radius-lg: 6px;
 
   --t: 0.22s ease;
+}
+
+/* Listening Room — Daylight (light mode).
+   Same aesthetic spirit: warm paper, deep ink, the accent gold stays gold. */
+:root[data-theme='light'] {
+  --bg: #f7f1e8;            /* warm paper */
+  --bg-2: #efe7d8;          /* cream card */
+  --bg-3: #e6dcc9;          /* soft surface */
+  --surface: #ddd1bb;
+  --ink: #2a1f12;           /* deep coffee ink */
+  --ink-2: #5a4a35;
+  --ink-3: #8a7860;
+  --accent: #a87830;        /* the gold stays, slightly deepened for AA contrast */
+  --accent-glow: rgba(168, 120, 48, 0.16);
+  --groove: #cfc0a4;        /* subtle line */
+  --shadow: rgba(58, 42, 22, 0.14);
+  --danger: #a83a3a;
+  --success: #4a8050;
 }
 
 * {

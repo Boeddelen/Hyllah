@@ -22,6 +22,25 @@
     />
 
     %sveltekit.head%
+
+    <!-- Theme init: must run before paint to avoid flash-of-wrong-theme.
+         Reads stored choice, falls back to OS preference. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('rv-theme');
+          var theme = stored;
+          if (!theme) {
+            theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+          }
+          if (theme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) { /* SSR / disabled storage — fall through to dark default */ }
+      })();
+    </script>
   </head>
   <body data-sveltekit-preload-data="hover">
     <div style="display: contents">%sveltekit.body%</div>
