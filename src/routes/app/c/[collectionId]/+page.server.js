@@ -3,11 +3,15 @@ import { loadCollection, loadRecords } from '$lib/server/db';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ params, parent, locals: { supabase } }) => {
-  const { user } = await parent();
+  const { user, profile } = await parent();
   const collection = await loadCollection(supabase, user.id, params.collectionId);
   if (!collection) throw error(404, 'Collection not found');
 
-  const records = await loadRecords(supabase, user.id, params.collectionId);
+  // Only fetch tracks when the user's preference needs them (tracklist or both view).
+  // Avoids the extra join when the user has the default 'details' view.
+  const cardBackView = profile?.card_back_view ?? 'details';
+  const withTracks = cardBackView === 'tracklist' || cardBackView === 'both';
+  const records = await loadRecords(supabase, user.id, params.collectionId, { withTracks });
 
   return { collection, records };
 };

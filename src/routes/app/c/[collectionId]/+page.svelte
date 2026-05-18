@@ -1,11 +1,15 @@
 <script>
   import { invalidateAll } from '$app/navigation';
+  import { onMount } from 'svelte';
   import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats';
   import RecordModal from '$lib/components/RecordModal.svelte';
   import UndoToast from '$lib/components/UndoToast.svelte';
 
   let { data } = $props();
   let { collection, records } = $derived(data);
+
+  // ── User preference: how to display the back of cards ─
+  let cardBackView = $derived(data.profile?.card_back_view ?? 'details');
 
   // ── Modal state ─────────────────────────────────
   let modalOpen = $state(false);
@@ -20,6 +24,38 @@
 
   // ── Card showing all-conditions prices? ─────────
   let pricesExpandedId = $state(null);
+
+  /**
+   * Auto-refresh prices weekly per record.
+   * On page mount, find records linked to Discogs whose prices are older than 7 days,
+   * and refresh up to 3 of them in the background. Caps the per-load load on Discogs.
+   * Non-blocking — runs silently. Errors are swallowed (next page load will retry).
+   */
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const MAX_REFRESH_PER_LOAD = 3;
+
+  function isStale(record) {
+    if (!record.discogs_id) return false;
+    if (!record.prices_refreshed_at) return true; // never refreshed
+    return Date.now() - new Date(record.prices_refreshed_at).getTime() > WEEK_MS;
+  }
+
+  onMount(async () => {
+    const stale = records.filter(isStale).slice(0, MAX_REFRESH_PER_LOAD);
+    if (stale.length === 0) return;
+    // Stagger the requests so we don't fire 3 at once
+    for (const record of stale) {
+      try {
+        await fetch(`/api/records/${record.id}/refresh-prices`, { method: 'POST' });
+      } catch {
+        // Silent. Next page load will try again.
+      }
+      // Small delay between requests so we don't trip Discogs' rate limit
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    // After refreshing, reload so the new prices appear in the UI
+    if (stale.length > 0) await invalidateAll();
+  });
 
   // Map condition codes (DB) to Discogs price keys (in the prices JSONB)
   const CONDITION_TO_DISCOGS_KEY = {
@@ -297,84 +333,110 @@
             </div>
 
             <div class="card-back-body">
-              <div class="detail-row">
-                <span class="detail-label">Format</span>
-                <span class="detail-value">{FORMATS[record.format]?.label ?? record.format}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Condition</span>
-                <span class="detail-value">{CONDITIONS[record.condition] ?? record.condition}</span>
-              </div>
-              {#if record.label}
-                <div class="detail-row">
-                  <span class="detail-label">Label</span>
-                  <span class="detail-value">{record.label}</span>
-                </div>
-              {/if}
-              {#if record.year}
-                <div class="detail-row">
-                  <span class="detail-label">Year</span>
-                  <span class="detail-value">{record.year}</span>
-                </div>
-              {/if}
-              {#if record.genre}
-                <div class="detail-row">
-                  <span class="detail-label">Genre</span>
-                  <span class="detail-value">{record.genre}</span>
-                </div>
-              {/if}
-              {#if record.purchase_price}
-                <div class="detail-row">
-                  <span class="detail-label">Paid</span>
-                  <span class="detail-value">€{Number(record.purchase_price).toFixed(2)}</span>
-                </div>
-              {/if}
-              {#if record.value_override}
-                <div class="detail-row">
-                  <span class="detail-label">Value</span>
-                  <span class="detail-value accent">€{Number(record.value_override).toFixed(2)}</span>
-                </div>
-              {/if}
-              {#if hasPrices(record)}
-                {@const myPrice = matchingPriceFor(record)}
-                {#if myPrice}
+              {#if cardBackView === 'details' || cardBackView === 'both'}
+                <div class="back-details">
                   <div class="detail-row">
-                    <span class="detail-label">Discogs ({shortCondition(record.condition)})</span>
-                    <span class="detail-value">€{Number(myPrice).toFixed(2)}</span>
+                    <span class="detail-label">Format</span>
+                    <span class="detail-value">{FORMATS[record.format]?.label ?? record.format}</span>
                   </div>
-                {/if}
-                <div class="detail-row price-toggle-row">
-                  <button
-                    type="button"
-                    class="price-toggle-btn"
-                    onclick={(e) => togglePricesExpanded(record, e)}
-                  >
-                    {pricesExpandedId === record.id ? '× Hide all prices' : '+ All Discogs prices'}
-                  </button>
-                </div>
-                {#if pricesExpandedId === record.id}
-                  <div class="all-prices">
-                    {#each Object.entries(record.prices) as [cond, p]}
-                      <div class="all-prices-row">
-                        <span class="all-prices-cond">{cond}</span>
-                        <span class="all-prices-val">€{Number(typeof p === 'object' ? p.value : p).toFixed(2)}</span>
+                  <div class="detail-row">
+                    <span class="detail-label">Condition</span>
+                    <span class="detail-value">{CONDITIONS[record.condition] ?? record.condition}</span>
+                  </div>
+                  {#if record.label}
+                    <div class="detail-row">
+                      <span class="detail-label">Label</span>
+                      <span class="detail-value">{record.label}</span>
+                    </div>
+                  {/if}
+                  {#if record.year}
+                    <div class="detail-row">
+                      <span class="detail-label">Year</span>
+                      <span class="detail-value">{record.year}</span>
+                    </div>
+                  {/if}
+                  {#if record.genre}
+                    <div class="detail-row">
+                      <span class="detail-label">Genre</span>
+                      <span class="detail-value">{record.genre}</span>
+                    </div>
+                  {/if}
+                  {#if record.purchase_price}
+                    <div class="detail-row">
+                      <span class="detail-label">Paid</span>
+                      <span class="detail-value">€{Number(record.purchase_price).toFixed(2)}</span>
+                    </div>
+                  {/if}
+                  {#if record.value_override}
+                    <div class="detail-row">
+                      <span class="detail-label">Value</span>
+                      <span class="detail-value accent">€{Number(record.value_override).toFixed(2)}</span>
+                    </div>
+                  {/if}
+                  {#if hasPrices(record)}
+                    {@const myPrice = matchingPriceFor(record)}
+                    {#if myPrice}
+                      <div class="detail-row">
+                        <span class="detail-label">Discogs ({shortCondition(record.condition)})</span>
+                        <span class="detail-value">€{Number(myPrice).toFixed(2)}</span>
                       </div>
-                    {/each}
-                  </div>
-                {/if}
-              {/if}
-              {#if record.tags?.length}
-                <div class="detail-row tags-row">
-                  <span class="detail-label">Tags</span>
-                  <div class="tag-list">
-                    {#each record.tags as tag}
-                      <span class="tag">{tag}</span>
-                    {/each}
-                  </div>
+                    {/if}
+                    <div class="detail-row price-toggle-row">
+                      <button
+                        type="button"
+                        class="price-toggle-btn"
+                        onclick={(e) => togglePricesExpanded(record, e)}
+                      >
+                        {pricesExpandedId === record.id ? '× Hide all prices' : '+ All Discogs prices'}
+                      </button>
+                    </div>
+                    {#if pricesExpandedId === record.id}
+                      <div class="all-prices">
+                        {#each Object.entries(record.prices) as [cond, p]}
+                          <div class="all-prices-row">
+                            <span class="all-prices-cond">{cond}</span>
+                            <span class="all-prices-val">€{Number(typeof p === 'object' ? p.value : p).toFixed(2)}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                  {/if}
+                  {#if record.tags?.length}
+                    <div class="detail-row tags-row">
+                      <span class="detail-label">Tags</span>
+                      <div class="tag-list">
+                        {#each record.tags as tag}
+                          <span class="tag">{tag}</span>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+                  {#if record.notes}
+                    <div class="notes">{record.notes}</div>
+                  {/if}
                 </div>
               {/if}
-              {#if record.notes}
-                <div class="notes">{record.notes}</div>
+
+              {#if cardBackView === 'tracklist' || cardBackView === 'both'}
+                <div class="back-tracklist" class:has-details-above={cardBackView === 'both'}>
+                  {#if record.tracks?.length}
+                    <ol class="track-list-back">
+                      {#each record.tracks as t}
+                        <li class="back-track">
+                          {#if t.position}
+                            <span class="back-track-pos">{t.position}</span>
+                          {/if}
+                          <span class="back-track-title">{t.title}</span>
+                          {#if t.duration}
+                            <span class="back-track-dur">{t.duration}</span>
+                          {/if}
+                        </li>
+                      {/each}
+                    </ol>
+                  {:else}
+                    <div class="no-tracks">No tracklist yet.</div>
+                  {/if}
+                </div>
               {/if}
             </div>
 
@@ -662,8 +724,62 @@
     margin-top: 4px;
   }
 
-  /* ── Price toggle / all-prices ───────────────────── */
-  .price-toggle-row { padding: 0; }
+  /* ── Tracklist on card back ───────────────────────── */
+  .back-tracklist {
+    padding-top: 4px;
+  }
+  .back-tracklist.has-details-above {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--groove);
+  }
+  .track-list-back {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .back-track {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 2px 0;
+  }
+  .back-track-pos {
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+    min-width: 22px;
+  }
+  .back-track-title {
+    font-family: var(--ff-display);
+    color: var(--ink);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .back-track-dur {
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+  .no-tracks {
+    text-align: center;
+    color: var(--ink-3);
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 12px;
+    padding: 14px 0;
+  }
+
+  /* ── Price toggle / all-prices ───────────────────── */  .price-toggle-row { padding: 0; }
   .price-toggle-btn {
     width: 100%;
     background: transparent;

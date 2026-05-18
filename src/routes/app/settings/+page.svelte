@@ -6,7 +6,22 @@
 
   let { data } = $props();
 
+  const CARD_BACK_OPTIONS = [
+    { value: 'details',   label: 'Album details',  hint: 'Format, year, label, condition, notes…' },
+    { value: 'tracklist', label: 'Tracklist',      hint: 'Just the tracks.' },
+    { value: 'both',      label: 'Both',           hint: 'Details first, then tracklist below.' }
+  ];
+
+  let cardBackView = $state(data.profile?.card_back_view ?? 'details');
+  let savingPrefs = $state(false);
+
   let banner = $derived.by(() => {
+    if (data.prefsStatus === 'saved') {
+      return { tone: 'success', text: 'Preferences saved.' };
+    }
+    if (data.prefsStatus === 'error') {
+      return { tone: 'error', text: 'Could not save preferences.' };
+    }
     switch (data.discogsStatus) {
       case 'connected':
         return {
@@ -132,6 +147,45 @@
           — it takes a minute. Cover art and tracklists work without this.
         </div>
       {/if}
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Coming soon</h2>
+  <!-- ── Display preferences ─────────────────────── -->
+  <section class="section">
+    <h2>Display</h2>
+    <p class="lede">How records look in your collection.</p>
+
+    <div class="card">
+      <form
+        method="POST"
+        action="?/updatePreferences"
+        onsubmit={() => { savingPrefs = true; }}
+      >
+        <div class="pref-row">
+          <div class="pref-label">When flipping a record card</div>
+          <div class="pref-options">
+            {#each CARD_BACK_OPTIONS as opt}
+              <label class="radio-pill" class:checked={cardBackView === opt.value}>
+                <input
+                  type="radio"
+                  name="card_back_view"
+                  value={opt.value}
+                  bind:group={cardBackView}
+                />
+                <span class="radio-text">{opt.label}</span>
+                <span class="radio-hint">{opt.hint}</span>
+              </label>
+            {/each}
+          </div>
+        </div>
+        <div class="pref-actions">
+          <button type="submit" class="btn primary" disabled={savingPrefs}>
+            {savingPrefs ? 'Saving…' : 'Save preferences'}
+          </button>
+        </div>
+      </form>
     </div>
   </section>
 
@@ -385,6 +439,61 @@
     font-size: 14px;
     color: var(--ink-3);
     line-height: 1.6;
+  }
+
+  /* ── Preferences ─────────────────────────────────── */
+  .pref-row { padding: 16px 0; }
+  .pref-label {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+  }
+  .pref-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .radio-pill {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 11px 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--t), background var(--t);
+  }
+  .radio-pill:hover { border-color: var(--ink-3); }
+  .radio-pill.checked {
+    border-color: var(--accent);
+    background: rgba(212, 163, 86, 0.07);
+  }
+  .radio-pill input[type='radio'] {
+    margin: 0;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .radio-text {
+    font-family: var(--ff-display);
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .radio-pill.checked .radio-text { color: var(--accent); }
+  .radio-hint {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .pref-actions {
+    padding-top: 12px;
+    display: flex;
+    justify-content: flex-end;
   }
 
   @media (max-width: 640px) {

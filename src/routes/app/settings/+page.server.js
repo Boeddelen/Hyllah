@@ -6,7 +6,8 @@ import { PUBLIC_APP_URL } from '$env/static/public';
 export const load = async ({ url }) => {
   return {
     discogsStatus: url.searchParams.get('discogs'),
-    discogsDetail: url.searchParams.get('detail')
+    discogsDetail: url.searchParams.get('detail'),
+    prefsStatus: url.searchParams.get('prefs')
   };
 };
 
@@ -76,5 +77,30 @@ export const actions = {
       .eq('id', user.id);
 
     throw redirect(303, '/app/settings?discogs=disconnected');
+  },
+
+  /** Update display preferences (currently just card_back_view). */
+  updatePreferences: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const cardBackView = form.get('card_back_view')?.toString();
+
+    // Whitelist validation — only accept known values
+    if (!['details', 'tracklist', 'both'].includes(cardBackView)) {
+      throw redirect(303, '/app/settings?prefs=error');
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ card_back_view: cardBackView })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('updatePreferences failed:', error);
+      throw redirect(303, '/app/settings?prefs=error');
+    }
+    throw redirect(303, '/app/settings?prefs=saved');
   }
 };

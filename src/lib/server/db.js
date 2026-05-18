@@ -72,19 +72,32 @@ export async function loadCollectionCounts(supabase, userId) {
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string} userId
  * @param {string} collectionId
- * @param {{ archived?: boolean }} [opts]
+ * @param {{ archived?: boolean, withTracks?: boolean }} [opts]
  */
 export async function loadRecords(supabase, userId, collectionId, opts = {}) {
   const archived = opts.archived ?? false;
+  // When tracks are needed for the card-back tracklist view, fetch them inline
+  // via a nested select. Cheaper than N separate queries.
+  const select = opts.withTracks
+    ? '*, tracks(position, title, duration, sort_order)'
+    : '*';
   const { data, error } = await supabase
     .from('records')
-    .select('*')
+    .select(select)
     .eq('user_id', userId)
     .eq('collection_id', collectionId)
     .eq('is_archived', archived)
     .eq('is_pending_delete', false)
     .order('created_at', { ascending: false });
   if (error) throw error;
+  // Sort tracks per record (Postgres doesn't guarantee order on the nested join)
+  if (opts.withTracks && data) {
+    for (const r of data) {
+      if (Array.isArray(r.tracks)) {
+        r.tracks.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      }
+    }
+  }
   return data ?? [];
 }
 

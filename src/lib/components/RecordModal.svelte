@@ -41,6 +41,7 @@
   let errorMsg = $state('');
   let showSearch = $state(false);       // Discogs search panel shown?
   let autofilling = $state(false);
+  let refreshingPrices = $state(false);
 
   // Duplicate detection
   let duplicates = $state([]);
@@ -49,6 +50,55 @@
 
   let isEdit = $derived(record !== null);
   let isLinked = $derived(Boolean(discogsId));
+
+  // ── Tag autocomplete ────────────────────────────────
+  let allTags = $state([]);             // [{tag, count}] — fetched once per modal open
+  let tagSuggestions = $state([]);
+
+  async function loadTagsCatalog() {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const data = await res.json();
+        allTags = data.tags ?? [];
+      }
+    } catch {
+      // Non-fatal — autocomplete simply won't show
+    }
+  }
+
+  /** Extract the current fragment being typed (after last comma). */
+  function currentFragment(input) {
+    const idx = input.lastIndexOf(',');
+    return idx === -1 ? input.trim() : input.slice(idx + 1).trim();
+  }
+
+  /** Tags already in the input — to exclude from suggestions. */
+  function alreadyEntered(input) {
+    return input.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+  }
+
+  function onTagInput() {
+    const frag = currentFragment(tagsText).toLowerCase();
+    if (frag.length === 0) {
+      tagSuggestions = [];
+      return;
+    }
+    const excluded = new Set(alreadyEntered(tagsText));
+    tagSuggestions = allTags
+      .filter(({ tag }) => tag.toLowerCase().includes(frag) && !excluded.has(tag.toLowerCase()))
+      .slice(0, 6);
+  }
+
+  /** Replace the current fragment with the chosen suggestion. */
+  function applyTagSuggestion(tag) {
+    const idx = tagsText.lastIndexOf(',');
+    const prefix = idx === -1 ? '' : tagsText.slice(0, idx + 1) + ' ';
+    tagsText = prefix + tag + ', ';
+    tagSuggestions = [];
+    // refocus the input so user keeps typing
+    document.getElementById('tags')?.focus();
+  }
 
   // ── Reset / hydrate when modal opens ────────────────
   $effect(() => {
@@ -97,6 +147,9 @@
     showDuplicateWarning = false;
     forceCreate = '';
     tracksDirty = false;
+    tagSuggestions = [];
+    // Load (or refresh) the tag catalog for autocomplete
+    loadTagsCatalog();
   });
 
   async function loadTracksFor(recordId) {
@@ -161,9 +214,12 @@
         priceWarning = data.price_error ?? 'unavailable';
       }
 
-      // Tracklist: only overwrite if empty, or if it's an autofill onto an existing record
-      // that was previously linked to a different release.
-      if (tracks.length === 0 && Array.isArray(data.tracklist)) {
+      // Tracklist: replace if current is empty OR if current has broken/empty titles
+      // (an artifact of the previous bind:value bug — old records may have positions
+      // and durations but no titles. Autofilling should fix those.)
+      const tracksAreEmpty = tracks.length === 0;
+      const tracksAreBroken = tracks.length > 0 && tracks.every((t) => !t.title?.trim());
+      if ((tracksAreEmpty || tracksAreBroken) && Array.isArray(data.tracklist)) {
         tracks = data.tracklist.map((t) => ({
           position: t.position ?? '',
           title: t.title,
@@ -187,6 +243,38 @@
     // Only clear image if it's a Discogs CDN image
     if (imageUrl && /img\.discogs\.com|discogs\.com\/images/.test(imageUrl)) {
       imageUrl = '';
+    }
+  }
+
+  /**
+   * Pull fresh prices from Discogs for this record's linked release.
+   * Persists directly to the DB so the user doesn't need to Save afterwards.
+   */
+  async function refreshPrices() {
+    if (!record?.id) return;
+    refreshingPrices = true;
+    errorMsg = '';
+    try {
+      const res = await fetch(`/api/records/${record.id}/refresh-prices`, { method: 'POST' });
+      if (!res.ok) {
+        const txt = await res.text();
+        if (res.status === 412) {
+          priceWarning = 'seller_settings';
+        } else if (res.status === 429) {
+          errorMsg = 'Discogs is rate-limiting us. Try again in a minute.';
+        } else {
+          errorMsg = `Could not refresh prices: ${txt || res.status}`;
+        }
+        return;
+      }
+      const data = await res.json();
+      prices = data.prices;
+      priceWarning = '';
+    } catch (err) {
+      console.error('refreshPrices failed', err);
+      errorMsg = 'Could not refresh prices.';
+    } finally {
+      refreshingPrices = false;
     }
   }
 
@@ -338,6 +426,17 @@
                 >
               </div>
               <div class="linked-actions">
+                {#if isEdit}
+                  <button
+                    type="button"
+                    class="link-btn"
+                    onclick={refreshPrices}
+                    disabled={refreshingPrices}
+                    title="Pull latest prices from Discogs"
+                  >
+                    {refreshingPrices ? '…' : '↻ Refresh prices'}
+                  </button>
+                {/if}
                 <button type="button" class="link-btn" onclick={() => (showSearch = !showSearch)}>
                   {showSearch ? 'Hide search' : 'Re-link'}
                 </button>
@@ -450,7 +549,32 @@
 
           <div class="field span-4">
             <label for="tags">Tags</label>
-            <input id="tags" name="tags" type="text" bind:value={tagsText} placeholder="grunge, 90s, favorites" />
+            <div class="tag-input-wrap">
+              <input
+                id="tags"
+                name="tags"
+                type="text"
+                bind:value={tagsText}
+                oninput={onTagInput}
+                onblur={() => setTimeout(() => (tagSuggestions = []), 150)}
+                placeholder="grunge, 90s, favorites"
+                autocomplete="off"
+              />
+              {#if tagSuggestions.length > 0}
+                <div class="tag-suggestions" role="listbox">
+                  {#each tagSuggestions as s}
+                    <button
+                      type="button"
+                      class="tag-suggestion"
+                      onmousedown={(e) => { e.preventDefault(); applyTagSuggestion(s.tag); }}
+                    >
+                      <span>{s.tag}</span>
+                      <span class="tag-count">{s.count}</span>
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
             <div class="field-hint">Separate with commas. Up to 30 tags.</div>
           </div>
 
@@ -796,13 +920,15 @@
   }
   .track-row {
     display: flex; gap: 6px; align-items: center;
+    width: 100%;
   }
   .track-row input {
     padding: 8px 10px; font-size: 14px;
+    min-width: 0;  /* critical: allow flexbox to shrink inputs below their default width */
   }
-  .track-pos { width: 60px; flex-shrink: 0; }
-  .track-title { flex: 1; }
-  .track-dur { width: 80px; flex-shrink: 0; }
+  .track-pos { width: 60px; flex: 0 0 60px; }
+  .track-title { flex: 1 1 auto; min-width: 0; }
+  .track-dur { width: 80px; flex: 0 0 80px; }
   .track-actions {
     display: flex; gap: 2px; flex-shrink: 0;
   }
@@ -830,6 +956,46 @@
     color: var(--danger);
     border-radius: var(--radius);
     font-size: 13px;
+  }
+
+  /* ── Tag autocomplete ─────────────────────────── */
+  .tag-input-wrap { position: relative; }
+  .tag-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px var(--shadow);
+    overflow: hidden;
+    z-index: 5;
+  }
+  .tag-suggestion {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--groove);
+    color: var(--ink);
+    font-family: var(--ff-display);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: background var(--t);
+  }
+  .tag-suggestion:last-child { border-bottom: none; }
+  .tag-suggestion:hover { background: var(--bg-3); }
+  .tag-count {
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
   }
 
   .modal-footer {
