@@ -4,9 +4,19 @@
   import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats';
   import RecordModal from '$lib/components/RecordModal.svelte';
   import UndoToast from '$lib/components/UndoToast.svelte';
+  import FilterBar from '$lib/components/FilterBar.svelte';
 
   let { data } = $props();
   let { collection, records } = $derived(data);
+
+  // ── Filter state from URL (passed via load) ─────
+  let hasActiveFilters = $derived(
+    Boolean(data.filter?.query) ||
+    (data.filter?.formats?.length ?? 0) > 0 ||
+    (data.filter?.conditions?.length ?? 0) > 0 ||
+    (data.filter?.tags?.length ?? 0) > 0 ||
+    (data.filter?.sort && data.filter.sort !== 'recent')
+  );
 
   // ── User preference: how to display the back of cards ─
   let cardBackView = $derived(data.profile?.card_back_view ?? 'details');
@@ -270,8 +280,12 @@
         <span>{collection.name}</span>
       </div>
       <h1>
-        {#if totalCount === 0}
+        {#if totalCount === 0 && !hasActiveFilters}
           An empty <em>shelf</em>.
+        {:else if totalCount === 0 && hasActiveFilters}
+          No <em>matches</em>.
+        {:else if hasActiveFilters}
+          {totalCount} {totalCount === 1 ? 'match' : 'matches'}<em>.</em>
         {:else}
           {totalCount} {totalCount === 1 ? 'record' : 'records'}<em>.</em>
         {/if}
@@ -304,12 +318,30 @@
     <a class="btn ghost" href="/app/c/{collection.id}/archived">⛔ Archive</a>
   </div>
 
+  <FilterBar
+    query={data.filter.query}
+    formats={data.filter.formats}
+    conditions={data.filter.conditions}
+    tags={data.filter.tags}
+    sort={data.filter.sort}
+    facets={data.facets}
+  />
+
   {#if visibleRecords.length === 0}
-    <div class="empty-state">
-      <div class="empty-icon">🎵</div>
-      <h2>Nothing on the shelf yet.</h2>
-      <p>Click <strong>Add record</strong> to put the first one in.</p>
-    </div>
+    {#if hasActiveFilters}
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h2>Nothing matches.</h2>
+        <p>Try clearing some filters, or search for something else.</p>
+        <a class="btn ghost" href="/app/c/{collection.id}">Clear all filters</a>
+      </div>
+    {:else}
+      <div class="empty-state">
+        <div class="empty-icon">🎵</div>
+        <h2>Nothing on the shelf yet.</h2>
+        <p>Click <strong>Add record</strong> to put the first one in.</p>
+      </div>
+    {/if}
   {:else}
     <div class="record-grid">
       {#each visibleRecords as record (record.id)}

@@ -1,19 +1,59 @@
-import { error, fail, redirect, json } from '@sveltejs/kit';
-import { loadCollection, loadRecords } from '$lib/server/db';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { loadCollection, loadCollectionFacets, loadRecords } from '$lib/server/db';
+
+/** Parse a comma-separated URL param into a clean string array. */
+function arrParam(url, key) {
+  const raw = url.searchParams.get(key);
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Whitelist a sort key against the known set. */
+const VALID_SORTS = [
+  'recent', 'oldest', 'artist', 'title',
+  'year-desc', 'year-asc', 'value-desc', 'value-asc'
+];
 
 /** @type {import('./$types').PageServerLoad} */
-export const load = async ({ params, parent, locals: { supabase } }) => {
+export const load = async ({ params, parent, url, locals: { supabase } }) => {
   const { user, profile } = await parent();
   const collection = await loadCollection(supabase, user.id, params.collectionId);
   if (!collection) throw error(404, 'Collection not found');
 
+  // Read filter / search / sort state from URL — bookmarkable and shareable
+  const query = url.searchParams.get('q') ?? '';
+  const formats = arrParam(url, 'format');
+  const conditions = arrParam(url, 'condition');
+  const tags = arrParam(url, 'tag');
+  const sortRaw = url.searchParams.get('sort') ?? 'recent';
+  const sort = VALID_SORTS.includes(sortRaw) ? sortRaw : 'recent';
+
   // Only fetch tracks when the user's preference needs them (tracklist or both view).
-  // Avoids the extra join when the user has the default 'details' view.
   const cardBackView = profile?.card_back_view ?? 'details';
   const withTracks = cardBackView === 'tracklist' || cardBackView === 'both';
-  const records = await loadRecords(supabase, user.id, params.collectionId, { withTracks });
 
-  return { collection, records };
+  // Records + facets in parallel
+  const [records, facets] = await Promise.all([
+    loadRecords(supabase, user.id, params.collectionId, {
+      withTracks,
+      query,
+      formats,
+      conditions,
+      tags,
+      sort
+    }),
+    loadCollectionFacets(supabase, user.id, params.collectionId)
+  ]);
+
+  return {
+    collection,
+    records,
+    facets,
+    filter: { query, formats, conditions, tags, sort }
+  };
 };
 
 // ─── Form parsing helpers ──────────────────────────────────────────────
