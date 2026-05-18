@@ -648,8 +648,8 @@
   .cover-format-icon { font-size: 64px; opacity: 0.4; }
   .cover-badge {
     position: absolute; top: 8px; right: 8px;
-    background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
-    color: var(--ink);
+    background: var(--overlay); backdrop-filter: blur(4px);
+    color: #f5e6d3;  /* always cream text — the overlay background is always dark */
     font-family: var(--ff-mono); font-size: 8px;
     letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 8px; border-radius: 99px;

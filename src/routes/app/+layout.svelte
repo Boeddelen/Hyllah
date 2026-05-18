@@ -298,7 +298,7 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--overlay);
     z-index: 15;
     border: none;
     padding: 0;

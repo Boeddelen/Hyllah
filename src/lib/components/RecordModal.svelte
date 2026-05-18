@@ -679,7 +679,7 @@
 <style>
   .backdrop {
     position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--overlay);
     backdrop-filter: blur(4px);
     z-index: 100;
     display: flex; align-items: flex-start; justify-content: center;

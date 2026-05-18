@@ -17,6 +17,7 @@
   --accent-glow: rgba(212, 163, 86, 0.18);
   --groove: #3d342a;
   --shadow: rgba(0, 0, 0, 0.55);
+  --overlay: rgba(0, 0, 0, 0.62);   /* full-screen dim behind modals + the format badge on covers */
   --danger: #c64a4a;
   --success: #7fb685;
 
@@ -44,6 +45,7 @@
   --accent-glow: rgba(168, 120, 48, 0.16);
   --groove: #cfc0a4;        /* subtle line */
   --shadow: rgba(58, 42, 22, 0.14);
+  --overlay: rgba(42, 31, 18, 0.55);   /* warm-ink overlay — matches the deep coffee ink */
   --danger: #a83a3a;
   --success: #4a8050;
 }
