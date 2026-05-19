@@ -2,12 +2,27 @@
   import { invalidateAll } from '$app/navigation';
   import { onMount } from 'svelte';
   import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats';
+  import { formatCurrency } from '$lib/currency.js';
   import RecordModal from '$lib/components/RecordModal.svelte';
   import UndoToast from '$lib/components/UndoToast.svelte';
   import FilterBar from '$lib/components/FilterBar.svelte';
 
   let { data } = $props();
   let { collection, records } = $derived(data);
+
+  // The user's currency preferences arrive via the app layout server load
+  let displayCurrency = $derived(data.displayCurrency ?? 'EUR');
+  let rates = $derived(data.rates ?? { EUR: 1 });
+
+  /** Convert a stored-EUR amount to the user's display currency. */
+  function toDisplay(amount) {
+    if (!Number.isFinite(Number(amount))) return amount;
+    const n = Number(amount);
+    if (displayCurrency === 'EUR') return n;
+    const target = rates[displayCurrency];
+    if (!target) return n;
+    return n * target;  // stored in EUR (rate 1), so multiply by target rate directly
+  }
 
   // ── Filter state from URL (passed via load) ─────
   let hasActiveFilters = $derived(
@@ -280,13 +295,13 @@
 
   function fmtPrice(n) {
     if (!Number.isFinite(n) || n === 0) return '—';
-    return `€${n.toFixed(0)}`;
+    return formatCurrency(toDisplay(n), displayCurrency, { compact: true });
   }
   function fmtNet(value, paid) {
     if (value === 0 && paid === 0) return '—';
     const net = value - paid;
     const sign = net > 0 ? '+' : '';
-    return `${sign}€${net.toFixed(0)}`;
+    return `${sign}${formatCurrency(toDisplay(net), displayCurrency, { compact: true })}`;
   }
   function netClass(value, paid) {
     const net = value - paid;
@@ -408,7 +423,7 @@
               <div class="card-footer-front">
                 <span class="condition-pill">{shortCondition(record.condition)}</span>
                 {#if record.value_override}
-                  <span class="card-value">€{Number(record.value_override).toFixed(0)}</span>
+                  <span class="card-value">{formatCurrency(toDisplay(Number(record.value_override)), displayCurrency, { compact: true })}</span>
                 {/if}
               </div>
             </div>
@@ -455,13 +470,13 @@
                   {#if record.purchase_price}
                     <div class="detail-row">
                       <span class="detail-label">Paid</span>
-                      <span class="detail-value">€{Number(record.purchase_price).toFixed(2)}</span>
+                      <span class="detail-value">{formatCurrency(toDisplay(Number(record.purchase_price)), displayCurrency)}</span>
                     </div>
                   {/if}
                   {#if record.value_override}
                     <div class="detail-row">
                       <span class="detail-label">Value</span>
-                      <span class="detail-value accent">€{Number(record.value_override).toFixed(2)}</span>
+                      <span class="detail-value accent">{formatCurrency(toDisplay(Number(record.value_override)), displayCurrency)}</span>
                     </div>
                   {/if}
                   {#if hasPrices(record)}
@@ -469,7 +484,7 @@
                     {#if myPrice}
                       <div class="detail-row">
                         <span class="detail-label">Discogs ({shortCondition(record.condition)})</span>
-                        <span class="detail-value">€{Number(myPrice).toFixed(2)}</span>
+                        <span class="detail-value">{formatCurrency(toDisplay(Number(myPrice)), displayCurrency)}</span>
                       </div>
                     {/if}
                     <div class="detail-row price-toggle-row">
@@ -486,7 +501,7 @@
                         {#each sortedPrices(record.prices) as [cond, p]}
                           <div class="all-prices-row">
                             <span class="all-prices-cond">{cond}</span>
-                            <span class="all-prices-val">€{Number(typeof p === 'object' ? p.value : p).toFixed(2)}</span>
+                            <span class="all-prices-val">{formatCurrency(toDisplay(Number(typeof p === 'object' ? p.value : p)), displayCurrency)}</span>
                           </div>
                         {/each}
                       </div>

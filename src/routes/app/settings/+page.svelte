@@ -4,8 +4,9 @@
   // client-side via fetch, which cannot follow an external redirect to
   // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { getTheme, setTheme } from '$lib/theme.js';
+  import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from '$lib/currency.js';
 
   let { data } = $props();
 
@@ -18,15 +19,75 @@
   let cardBackView = $state(data.profile?.card_back_view ?? 'details');
   let savingPrefs = $state(false);
 
+  // ── Profile state ──────────────────────────────────────
+  let username       = $state(data.profile?.username ?? '');
+  let displayName    = $state(data.profile?.display_name ?? '');
+  let bio            = $state(data.profile?.bio ?? '');
+  let displayCurrency = $state(data.profile?.display_currency ?? 'EUR');
+  let isPublic        = $state(data.profile?.is_public ?? false);
+  let showValuesPublicly = $state(data.profile?.show_values_publicly ?? false);
+  let savingProfile = $state(false);
+
+  // Username availability check (debounced)
+  let usernameStatus = $state('idle');   // 'idle' | 'checking' | 'available' | 'taken' | 'reserved' | 'format'
+  let usernameDebounce;
+
+  function onUsernameInput() {
+    // Normalize as the user types — keep what they see in sync with what we'll save
+    username = username.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    clearTimeout(usernameDebounce);
+    // Empty username is fine (clearing your username) — don't fire a check
+    if (!username) {
+      usernameStatus = 'idle';
+      return;
+    }
+    // If it's their existing username, no need to check
+    if (username === (data.profile?.username ?? '')) {
+      usernameStatus = 'available';
+      return;
+    }
+    usernameStatus = 'checking';
+    usernameDebounce = setTimeout(checkUsername, 350);
+  }
+
+  async function checkUsername() {
+    try {
+      const res = await fetch(`/api/username-available?u=${encodeURIComponent(username)}`);
+      if (!res.ok) {
+        usernameStatus = 'idle';
+        return;
+      }
+      const body = await res.json();
+      if (body.available) usernameStatus = 'available';
+      else if (body.reason === 'taken') usernameStatus = 'taken';
+      else if (body.reason === 'reserved') usernameStatus = 'reserved';
+      else usernameStatus = 'format';
+    } catch {
+      usernameStatus = 'idle';
+    }
+  }
+
+  onDestroy(() => clearTimeout(usernameDebounce));
+
   // Theme state — initialized after mount so SSR doesn't see the wrong value
   let currentTheme = $state('dark');
-  onMount(() => { currentTheme = getTheme(); });
+  onMount(() => {
+    currentTheme = getTheme();
+    // Trigger initial check so the indicator is right on first load
+    if (username) onUsernameInput();
+  });
   function switchTheme(t) {
     currentTheme = t;
     setTheme(t);
   }
 
   let banner = $derived.by(() => {
+    if (data.profileStatus === 'saved') {
+      return { tone: 'success', text: 'Profile saved.' };
+    }
+    if (data.profileStatus === 'error') {
+      return { tone: 'error', text: data.profileError || 'Could not save profile.' };
+    }
     if (data.prefsStatus === 'saved') {
       return { tone: 'success', text: 'Preferences saved.' };
     }
@@ -86,6 +147,144 @@
         <div class="row-label">User ID</div>
         <div class="row-value mono">{data.user.id}</div>
       </div>
+    </div>
+  </section>
+
+  <!-- ── Profile ──────────────────────────────────────── -->
+  <section class="section">
+    <h2>Profile</h2>
+    <p class="lede">
+      Your username unlocks the public profile (coming in the next phase). Display name
+      and bio are what other people will see. Display currency converts all the prices
+      you see across the app — your data stays stored in its original currency.
+    </p>
+
+    <div class="card">
+      <form
+        method="POST"
+        action="?/updateProfile"
+        onsubmit={() => { savingProfile = true; }}
+      >
+        <!-- Username -->
+        <div class="field">
+          <label for="username">Username</label>
+          <div class="username-input">
+            <span class="username-prefix">retrovault.no/u/</span>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              bind:value={username}
+              oninput={onUsernameInput}
+              maxlength="30"
+              placeholder="your-handle"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+            />
+            {#if username}
+              <span class="username-status status-{usernameStatus}">
+                {#if usernameStatus === 'checking'}…
+                {:else if usernameStatus === 'available'}✓
+                {:else if usernameStatus === 'taken'}taken
+                {:else if usernameStatus === 'reserved'}reserved
+                {:else if usernameStatus === 'format'}invalid
+                {/if}
+              </span>
+            {/if}
+          </div>
+          <div class="field-hint">3–30 characters: lowercase letters, numbers, dash, underscore.</div>
+        </div>
+
+        <!-- Display name -->
+        <div class="field">
+          <label for="display_name">Display name</label>
+          <input
+            id="display_name"
+            name="display_name"
+            type="text"
+            bind:value={displayName}
+            maxlength="60"
+            placeholder="What people see on your profile"
+          />
+        </div>
+
+        <!-- Bio -->
+        <div class="field">
+          <label for="bio">Bio</label>
+          <textarea
+            id="bio"
+            name="bio"
+            bind:value={bio}
+            rows="3"
+            maxlength="500"
+            placeholder="A few words about you and your collection."
+          ></textarea>
+          <div class="field-hint">{bio.length}/500</div>
+        </div>
+
+        <!-- Currency -->
+        <div class="field">
+          <label for="display_currency">Display currency</label>
+          <select id="display_currency" name="display_currency" bind:value={displayCurrency}>
+            {#each SUPPORTED_CURRENCIES as code}
+              <option value={code}>{CURRENCY_LABELS[code]}</option>
+            {/each}
+          </select>
+          <div class="field-hint">
+            All prices in the app convert to this currency. Your stored values are not modified.
+          </div>
+        </div>
+
+        <!-- Public toggle -->
+        <div class="field toggle-field">
+          <label class="toggle-row">
+            <input
+              type="checkbox"
+              name="is_public"
+              bind:checked={isPublic}
+              disabled={!username}
+            />
+            <span class="toggle-label">
+              <span class="toggle-title">Make my profile public</span>
+              <span class="toggle-hint">
+                {#if !username}Add a username first to enable this.
+                {:else}Anyone with the link can see your collections. The public page itself ships next phase.
+                {/if}
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <!-- Hide values toggle -->
+        {#if isPublic}
+          <div class="field toggle-field">
+            <label class="toggle-row">
+              <input
+                type="checkbox"
+                name="show_values_publicly"
+                bind:checked={showValuesPublicly}
+              />
+              <span class="toggle-label">
+                <span class="toggle-title">Show monetary values on my public profile</span>
+                <span class="toggle-hint">
+                  When off, paid/value/totals are hidden from visitors. Counts and metadata still show.
+                </span>
+              </span>
+            </label>
+          </div>
+        {/if}
+
+        <div class="pref-actions">
+          <button
+            type="submit"
+            class="btn primary"
+            disabled={savingProfile || usernameStatus === 'taken' || usernameStatus === 'reserved' || usernameStatus === 'format'}
+          >
+            {savingProfile ? 'Saving…' : 'Save profile'}
+          </button>
+        </div>
+      </form>
     </div>
   </section>
 
@@ -538,6 +737,132 @@
     padding-top: 12px;
     display: flex;
     justify-content: flex-end;
+  }
+
+  /* ── Profile form ──────────────────────────────── */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 0;
+  }
+  .field + .field { border-top: 1px solid var(--groove); }
+  .field label {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .field input[type='text'],
+  .field textarea,
+  .field select {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    font-family: var(--ff-display);
+    font-size: 16px;
+    color: var(--ink);
+    transition: border-color var(--t);
+  }
+  .field textarea {
+    resize: vertical;
+    min-height: 70px;
+    font-family: var(--ff-body);
+    line-height: 1.5;
+    font-size: 15px;
+  }
+  .field input:focus,
+  .field textarea:focus,
+  .field select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M3 5l3 3 3-3' stroke='%23c2a988' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .field-hint {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+
+  /* Username input with prefix and status */
+  .username-input {
+    display: flex;
+    align-items: stretch;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    transition: border-color var(--t);
+    overflow: hidden;
+  }
+  .username-input:focus-within { border-color: var(--accent); }
+  .username-prefix {
+    padding: 11px 0 11px 14px;
+    font-family: var(--ff-mono);
+    font-size: 13px;
+    color: var(--ink-3);
+    flex-shrink: 0;
+  }
+  .username-input input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding-left: 2px;
+    min-width: 0;
+  }
+  .username-input input:focus { outline: none; border: none; }
+  .username-status {
+    align-self: center;
+    margin-right: 12px;
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .status-available { color: var(--success); }
+  .status-taken,
+  .status-reserved,
+  .status-format { color: var(--danger); }
+
+  /* Toggle fields (public, show values) */
+  .toggle-field { padding: 14px 0; }
+  .toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+  }
+  .toggle-row input[type='checkbox'] {
+    margin: 2px 0 0;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .toggle-row input[type='checkbox']:disabled { opacity: 0.4; cursor: not-allowed; }
+  .toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .toggle-title {
+    font-family: var(--ff-display);
+    font-size: 15px;
+    color: var(--ink);
+  }
+  .toggle-hint {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 12px;
+    color: var(--ink-3);
   }
 
   @media (max-width: 640px) {

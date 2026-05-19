@@ -1,17 +1,31 @@
 <script>
   import { FORMATS, CONDITIONS } from '$lib/formats';
+  import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
   let { stats } = $derived(data);
 
+  // User currency preferences from app layout server load
+  let displayCurrency = $derived(data.displayCurrency ?? 'EUR');
+  let rates = $derived(data.rates ?? { EUR: 1 });
+
+  function toDisplay(amount) {
+    const n = Number(amount);
+    if (!Number.isFinite(n)) return n;
+    if (displayCurrency === 'EUR') return n;
+    const target = rates[displayCurrency];
+    if (!target) return n;
+    return n * target;
+  }
+
   function fmtPrice(n) {
-    if (!Number.isFinite(n) || n === 0) return '€0';
-    return `€${Math.round(n).toLocaleString()}`;
+    if (!Number.isFinite(n) || n === 0) return formatCurrency(0, displayCurrency, { compact: true });
+    return formatCurrency(toDisplay(n), displayCurrency, { compact: true });
   }
 
   function fmtPriceDecimal(n) {
-    if (!Number.isFinite(n) || n === 0) return '€0';
-    return `€${Number(n).toFixed(2)}`;
+    if (!Number.isFinite(n) || n === 0) return formatCurrency(0, displayCurrency);
+    return formatCurrency(toDisplay(n), displayCurrency);
   }
 
   let net = $derived(stats.totalValue - stats.totalPaid);
