@@ -1,8 +1,10 @@
 <script>
   import { enhance } from '$app/forms';
   import { invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import { FORMATS, CONDITIONS } from '$lib/formats';
   import DiscogsSearch from './DiscogsSearch.svelte';
+  import CoverUpload from './CoverUpload.svelte';
 
   /**
    * Props:
@@ -11,6 +13,9 @@
    *  - onclose: callback when modal dismissed
    */
   let { open = $bindable(false), record = null, onclose } = $props();
+
+  // The browser Supabase client — provided via root layout
+  let supabase = $derived(page.data.supabase);
 
   // ── Form fields ─────────────────────────────────────
   let artist = $state('');
@@ -42,6 +47,7 @@
   let showSearch = $state(false);       // Discogs search panel shown?
   let autofilling = $state(false);
   let refreshingPrices = $state(false);
+  let showUpload = $state(false);    // Cover-upload component visible?
 
   // Duplicate detection
   let duplicates = $state([]);
@@ -148,6 +154,7 @@
     forceCreate = '';
     tracksDirty = false;
     tagSuggestions = [];
+    showUpload = false;
     // Load (or refresh) the tag catalog for autocomplete
     loadTagsCatalog();
   });
@@ -244,6 +251,20 @@
     if (imageUrl && /img\.discogs\.com|discogs\.com\/images/.test(imageUrl)) {
       imageUrl = '';
     }
+  }
+
+  /** A successful upload returns the public URL — replace existing cover. */
+  function handleCoverUploaded(url) {
+    imageUrl = url;
+    showUpload = false;
+  }
+
+  function removeCover() {
+    if (!confirm('Remove the cover image from this record?')) return;
+    imageUrl = '';
+    // We don't delete the actual file from storage here — leaves orphaned files.
+    // A periodic cleanup job will handle pruning, OR we can delete on Save.
+    // For v1, simpler is fine.
   }
 
   /**
@@ -468,12 +489,38 @@
           {/if}
         </div>
 
-        <!-- ── Cover preview ──────────────────────────── -->
-        {#if imageUrl}
-          <div class="cover-preview">
-            <img src={imageUrl} alt="Cover" />
-          </div>
-        {/if}
+        <!-- ── Cover image ─────────────────────────────── -->
+        <div class="cover-block">
+          {#if imageUrl && !showUpload}
+            <div class="cover-preview">
+              <img src={imageUrl} alt="Cover" />
+            </div>
+            <div class="cover-actions">
+              <button type="button" class="link-btn small" onclick={() => (showUpload = true)}>
+                🖼️ Replace
+              </button>
+              <button type="button" class="link-btn small danger" onclick={removeCover}>
+                ✕ Remove cover
+              </button>
+            </div>
+          {:else if showUpload}
+            <CoverUpload
+              {supabase}
+              userId={page.data.user?.id}
+              recordId={record?.id ?? null}
+              onuploaded={handleCoverUploaded}
+              oncancel={() => (showUpload = false)}
+            />
+          {:else}
+            <div class="cover-empty">
+              <div class="cover-empty-icon">🎵</div>
+              <div class="cover-empty-text">No cover image yet.</div>
+              <button type="button" class="link-btn small" onclick={() => (showUpload = true)}>
+                🖼️ Upload one
+              </button>
+            </div>
+          {/if}
+        </div>
 
         <!-- ── Main fields ────────────────────────────── -->
         <div class="form-grid">
@@ -808,16 +855,52 @@
   .spinner.small { width: 10px; height: 10px; border-width: 1.5px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Cover preview ──────────────────────────────── */
+  /* ── Cover block ────────────────────────────────── */
+  .cover-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
   .cover-preview {
-    width: 120px; height: 120px;
-    margin: 0 auto 18px;
+    width: 120px;
+    /* Height is content-driven now (original ratio).
+       For square covers this still renders as 120px. */
+    max-width: 200px;
     border-radius: var(--radius);
     overflow: hidden;
     border: 1px solid var(--groove);
+    background: var(--bg-3);
   }
   .cover-preview img {
-    width: 100%; height: 100%; object-fit: cover;
+    display: block;
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;  /* Preserve aspect — letterbox if needed */
+  }
+  .cover-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .cover-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 20px;
+    width: 100%;
+    max-width: 360px;
+    background: var(--bg-3);
+    border: 1px dashed var(--groove);
+    border-radius: var(--radius);
+  }
+  .cover-empty-icon { font-size: 26px; opacity: 0.5; }
+  .cover-empty-text {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
   }
 
   /* ── Form grid ──────────────────────────────────── */

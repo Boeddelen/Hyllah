@@ -61,6 +61,19 @@
       </div>
 
       <div class="nav-section">
+        <div class="nav-label">Library</div>
+        <a
+          href="/app/stats"
+          class="nav-item"
+          class:active={isActive('/app/stats')}
+          onclick={() => (sidebarOpen = false)}
+        >
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Stats</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
         <div class="nav-label">Account</div>
         <a
           href="/app/settings"
