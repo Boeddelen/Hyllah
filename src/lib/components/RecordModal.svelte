@@ -12,7 +12,21 @@
    *  - record: existing record (edit) or null (create)
    *  - onclose: callback when modal dismissed
    */
-  let { open = $bindable(false), record = null, onclose } = $props();
+  /**
+   * Props:
+   *  - open: boolean (bindable)
+   *  - record: existing record (edit) or null (create)
+   *  - onclose: callback when modal dismissed
+   *  - allCollections: { id, name }[]  — all the user's collections, for membership UI
+   *  - currentCollectionId: the collection we're viewing on this page (always included)
+   */
+  let {
+    open = $bindable(false),
+    record = null,
+    onclose,
+    allCollections = [],
+    currentCollectionId = null
+  } = $props();
 
   // The browser Supabase client — provided via root layout
   let supabase = $derived(page.data.supabase);
@@ -40,6 +54,14 @@
   let tracks = $state([]);              // [{position, title, duration}]
   let tracksDirty = $state(false);      // becomes true on edit, signals server to overwrite
   let tracksLoading = $state(false);
+
+  // ── Collection memberships ──────────────────────────
+  // Set of collection IDs this record is in. The current page's collection
+  // is always considered locked-in (we can't toggle it off here — the user
+  // must use the card-level "Remove from this collection" action instead).
+  let memberCollectionIds = $state(new Set());
+  let membershipsLoading = $state(false);
+  let membershipsDirty = $state(false);  // becomes true when user touches the multiselect
 
   // ── UI state ────────────────────────────────────────
   let submitting = $state(false);
@@ -127,6 +149,8 @@
       prices = record.prices && Object.keys(record.prices).length > 0 ? record.prices : null;
       // Lazy-fetch tracks for edit mode
       loadTracksFor(record.id);
+      // And the record's current collection memberships
+      loadMembershipsFor(record.id);
     } else {
       artist = '';
       title = '';
@@ -143,6 +167,8 @@
       imageUrl = '';
       prices = null;
       tracks = [];
+      // New record: starts in the current collection only
+      memberCollectionIds = new Set(currentCollectionId ? [currentCollectionId] : []);
     }
     priceWarning = '';
     submitting = false;
@@ -155,6 +181,7 @@
     tracksDirty = false;
     tagSuggestions = [];
     showUpload = false;
+    membershipsDirty = false;
     // Load (or refresh) the tag catalog for autocomplete
     loadTagsCatalog();
   });
@@ -179,6 +206,42 @@
     } finally {
       tracksLoading = false;
     }
+  }
+
+  async function loadMembershipsFor(recordId) {
+    if (!recordId) {
+      memberCollectionIds = new Set(currentCollectionId ? [currentCollectionId] : []);
+      return;
+    }
+    membershipsLoading = true;
+    try {
+      const res = await fetch(`/api/records/${recordId}/collections`);
+      if (res.ok) {
+        const data = await res.json();
+        const ids = Array.isArray(data.collectionIds) ? data.collectionIds : [];
+        // Ensure the current page's collection is always present
+        if (currentCollectionId) ids.push(currentCollectionId);
+        memberCollectionIds = new Set(ids);
+      } else {
+        memberCollectionIds = new Set(currentCollectionId ? [currentCollectionId] : []);
+      }
+    } catch (err) {
+      console.error('loadMemberships failed', err);
+      memberCollectionIds = new Set(currentCollectionId ? [currentCollectionId] : []);
+    } finally {
+      membershipsLoading = false;
+    }
+  }
+
+  function toggleMembership(collectionId) {
+    // The current page's collection is locked-in: you can't remove it from the
+    // modal. Use the card's "Remove from this collection" action for that.
+    if (collectionId === currentCollectionId) return;
+    const next = new Set(memberCollectionIds);
+    if (next.has(collectionId)) next.delete(collectionId);
+    else next.add(collectionId);
+    memberCollectionIds = next;
+    membershipsDirty = true;
   }
 
   // ── Discogs autofill ────────────────────────────────
@@ -433,6 +496,10 @@
         <input type="hidden" name="image_url" value={imageUrl} />
         <input type="hidden" name="prices" value={prices ? JSON.stringify(prices) : ''} />
         <input type="hidden" name="tracklist" value={tracklistJson} />
+        <!-- Collection memberships are only sent when the user actually changed them,
+             so the dual-write doesn't silently re-shuffle a record's collections
+             on routine edits. -->
+        <input type="hidden" name="collections" value={membershipsDirty ? Array.from(memberCollectionIds).join(',') : ''} />
 
         <!-- ── Discogs panel ──────────────────────────── -->
         <div class="discogs-panel">
@@ -683,6 +750,41 @@
             </div>
           {/if}
         </div>
+
+        <!-- ── In collections ──────────────────────────── -->
+        {#if allCollections.length > 1}
+          <div class="memberships-section">
+            <div class="section-header">
+              <h3>In collections</h3>
+              {#if membershipsLoading}
+                <span class="loading-tag"><span class="spinner small"></span></span>
+              {/if}
+            </div>
+            <p class="memberships-hint">
+              This record can live in more than one collection. Toggle below to add or remove
+              it from your other collections. {#if currentCollectionId}The current collection is locked here —
+              use <em>"Remove from this collection"</em> on the card itself for that.{/if}
+            </p>
+            <div class="memberships-list">
+              {#each allCollections as coll}
+                {@const isCurrent = coll.id === currentCollectionId}
+                {@const isMember = memberCollectionIds.has(coll.id)}
+                <label class="member-row" class:locked={isCurrent} class:active={isMember}>
+                  <input
+                    type="checkbox"
+                    checked={isMember}
+                    disabled={isCurrent}
+                    onchange={() => toggleMembership(coll.id)}
+                  />
+                  <span class="member-name">{coll.name}</span>
+                  {#if isCurrent}
+                    <span class="member-badge">current</span>
+                  {/if}
+                </label>
+              {/each}
+            </div>
+          </div>
+        {/if}
 
         {#if errorMsg}
           <div class="error">{errorMsg}</div>
@@ -984,6 +1086,72 @@
   .section-header h3 {
     font-family: var(--ff-display); font-size: 18px;
     font-weight: 500; color: var(--ink);
+  }
+  .loading-tag {
+    display: inline-flex;
+    align-items: center;
+    color: var(--ink-3);
+    font-size: 11px;
+  }
+
+  /* ── In Collections membership UI ──────────────── */
+  .memberships-section {
+    margin-top: 22px;
+    padding-top: 22px;
+    border-top: 1px solid var(--groove);
+  }
+  .memberships-hint {
+    font-family: var(--ff-display); font-style: italic;
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+  }
+  .memberships-hint em { color: var(--ink-2); font-style: italic; }
+  .memberships-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--t), background var(--t);
+  }
+  .member-row:hover:not(.locked) { border-color: var(--ink-3); }
+  .member-row.active {
+    border-color: var(--accent);
+    background: rgba(212, 163, 86, 0.06);
+  }
+  .member-row.locked {
+    cursor: not-allowed;
+    opacity: 0.85;
+  }
+  .member-row input[type='checkbox'] {
+    margin: 0;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .member-name {
+    flex: 1;
+    font-family: var(--ff-display);
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .member-badge {
+    font-family: var(--ff-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 2px 8px;
+    border: 1px solid var(--accent);
+    border-radius: 99px;
   }
   .tracks-empty, .tracks-loading {
     padding: 14px;

@@ -37,32 +37,24 @@ export async function loadCollections(supabase, userId) {
  * @param {string} userId
  */
 export async function loadCollectionCounts(supabase, userId) {
-  // Two count queries — one active, one archived
-  const [active, archived] = await Promise.all([
-    supabase
-      .from('records')
-      .select('collection_id', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('is_archived', false)
-      .eq('is_pending_delete', false),
-    supabase
-      .from('records')
-      .select('collection_id', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('is_archived', true)
-      .eq('is_pending_delete', false)
-  ]);
+  // Read junction memberships with the record's status, so we can split
+  // active vs archived per collection. A record in multiple collections
+  // is counted in each of them.
+  const { data, error } = await supabase
+    .from('record_collections')
+    .select('collection_id, records!inner(user_id, is_archived, is_pending_delete)')
+    .eq('records.user_id', userId)
+    .eq('records.is_pending_delete', false);
+  if (error) throw error;
 
   /** @type {Record<string, { active: number, archived: number }>} */
   const counts = {};
-  // Aggregate per collection_id
-  for (const row of active.data ?? []) {
+  for (const row of data ?? []) {
+    const rec = row.records;
+    if (!rec) continue;
     if (!counts[row.collection_id]) counts[row.collection_id] = { active: 0, archived: 0 };
-    counts[row.collection_id].active++;
-  }
-  for (const row of archived.data ?? []) {
-    if (!counts[row.collection_id]) counts[row.collection_id] = { active: 0, archived: 0 };
-    counts[row.collection_id].archived++;
+    if (rec.is_archived) counts[row.collection_id].archived++;
+    else counts[row.collection_id].active++;
   }
   return counts;
 }
@@ -84,6 +76,22 @@ export async function loadCollectionCounts(supabase, userId) {
  */
 export async function loadRecords(supabase, userId, collectionId, opts = {}) {
   const archived = opts.archived ?? false;
+
+  // When filtering to a specific collection, look up the records via the
+  // junction table so we catch records whose primary collection is elsewhere
+  // but that have been added to this one too.
+  // When collectionId is null/undefined we're loading the user's full inventory.
+  let recordIds = null;
+  if (collectionId) {
+    const { data: junctionRows, error: jErr } = await supabase
+      .from('record_collections')
+      .select('record_id')
+      .eq('collection_id', collectionId);
+    if (jErr) throw jErr;
+    recordIds = (junctionRows ?? []).map((r) => r.record_id);
+    if (recordIds.length === 0) return []; // empty collection, short-circuit
+  }
+
   // When tracks are needed for the card-back tracklist view, fetch them inline
   // via a nested select. Cheaper than N separate queries.
   const select = opts.withTracks
@@ -94,9 +102,12 @@ export async function loadRecords(supabase, userId, collectionId, opts = {}) {
     .from('records')
     .select(select)
     .eq('user_id', userId)
-    .eq('collection_id', collectionId)
     .eq('is_archived', archived)
     .eq('is_pending_delete', false);
+
+  if (recordIds !== null) {
+    q = q.in('id', recordIds);
+  }
 
   // ─── Free-text search across multiple fields ───────────────────────
   if (opts.query && opts.query.trim()) {
@@ -183,6 +194,27 @@ export async function loadRecords(supabase, userId, collectionId, opts = {}) {
       }
     }
   }
+
+  // Decorate each record with `collection_count` — how many collections this
+  // record sits in. Lets the UI decide whether to offer "Remove from this
+  // collection" vs. just Archive/Delete (a record can't leave its last
+  // collection without being archived).
+  if (data && data.length > 0) {
+    const ids = data.map((r) => r.id);
+    const { data: junctionAll } = await supabase
+      .from('record_collections')
+      .select('record_id')
+      .in('record_id', ids);
+    /** @type {Record<string, number>} */
+    const counts = {};
+    for (const row of junctionAll ?? []) {
+      counts[row.record_id] = (counts[row.record_id] ?? 0) + 1;
+    }
+    for (const r of data) {
+      r.collection_count = counts[r.id] ?? 1;
+    }
+  }
+
   return data ?? [];
 }
 
@@ -213,11 +245,22 @@ export async function loadCollection(supabase, userId, collectionId) {
  * @param {string} collectionId
  */
 export async function loadCollectionFacets(supabase, userId, collectionId) {
+  // Resolve membership via the junction table (consistent with loadRecords)
+  const { data: junctionRows, error: jErr } = await supabase
+    .from('record_collections')
+    .select('record_id')
+    .eq('collection_id', collectionId);
+  if (jErr) throw jErr;
+  const recordIds = (junctionRows ?? []).map((r) => r.record_id);
+  if (recordIds.length === 0) {
+    return { formats: [], conditions: [], tags: [] };
+  }
+
   const { data, error } = await supabase
     .from('records')
     .select('format, condition, tags')
     .eq('user_id', userId)
-    .eq('collection_id', collectionId)
+    .in('id', recordIds)
     .eq('is_archived', false)
     .eq('is_pending_delete', false);
   if (error) throw error;
@@ -249,4 +292,211 @@ export async function loadCollectionFacets(supabase, userId, collectionId) {
       .slice(0, 30)
       .map(([tag, count]) => ({ tag, count }))
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Many-to-many records ↔ collections (Phase 1D.2a, dual-write phase)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get the set of collection IDs a record currently belongs to.
+ * Reads from the new junction table.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} recordId
+ * @returns {Promise<string[]>}
+ */
+export async function loadRecordCollections(supabase, userId, recordId) {
+  // RLS filters by ownership of the record via the junction policy, but
+  // checking record ownership here is cheap and guards against malformed input.
+  const { data: record } = await supabase
+    .from('records')
+    .select('id')
+    .eq('id', recordId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!record) return [];
+
+  const { data, error } = await supabase
+    .from('record_collections')
+    .select('collection_id')
+    .eq('record_id', recordId);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.collection_id);
+}
+
+/**
+ * Replace a record's collection memberships with the given set.
+ * The record's primary `records.collection_id` is also kept in sync — it
+ * always points to one of the collections in the set (preferring the
+ * existing primary if it's still in the set, otherwise the first one).
+ *
+ * This is the dual-write strategy for migration 006a: junction table is
+ * the source of truth for "which collections is this record in?", but the
+ * legacy column stays populated so the rest of the app keeps working
+ * unchanged until migration 006b drops it.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} recordId
+ * @param {string[]} desiredCollectionIds — must include at least one
+ * @returns {Promise<{ ok: boolean, error?: string, primary?: string }>}
+ */
+export async function setRecordCollections(supabase, userId, recordId, desiredCollectionIds) {
+  // Defensive validation
+  if (!Array.isArray(desiredCollectionIds) || desiredCollectionIds.length === 0) {
+    return { ok: false, error: 'A record must belong to at least one collection.' };
+  }
+
+  // De-dupe; validate UUID shape
+  const desired = Array.from(new Set(desiredCollectionIds.filter(
+    (id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)
+  )));
+  if (desired.length === 0) {
+    return { ok: false, error: 'No valid collection IDs supplied.' };
+  }
+
+  // Verify the user owns the record and all requested collections
+  const [{ data: record }, { data: ownedColls }] = await Promise.all([
+    supabase
+      .from('records')
+      .select('id, collection_id')
+      .eq('id', recordId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('collections')
+      .select('id')
+      .eq('user_id', userId)
+      .in('id', desired)
+  ]);
+
+  if (!record) return { ok: false, error: 'Record not found.' };
+  const ownedSet = new Set((ownedColls ?? []).map((c) => c.id));
+  if (ownedSet.size !== desired.length) {
+    return { ok: false, error: 'One or more collections do not belong to you.' };
+  }
+
+  // Pick the primary: prefer existing if still in the set, else the first.
+  const primary = ownedSet.has(record.collection_id) ? record.collection_id : desired[0];
+
+  // Replace the junction rows. Done as delete-then-insert; RLS scopes this
+  // automatically to the user's rows.
+  // (We could diff, but the set is tiny and clarity wins.)
+  const { error: delErr } = await supabase
+    .from('record_collections')
+    .delete()
+    .eq('record_id', recordId);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  const rows = desired.map((cid) => ({ record_id: recordId, collection_id: cid }));
+  const { error: insErr } = await supabase.from('record_collections').insert(rows);
+  if (insErr) return { ok: false, error: insErr.message };
+
+  // Keep the legacy column in sync — points at the primary collection.
+  if (primary !== record.collection_id) {
+    const { error: upErr } = await supabase
+      .from('records')
+      .update({ collection_id: primary })
+      .eq('id', recordId)
+      .eq('user_id', userId);
+    if (upErr) return { ok: false, error: upErr.message };
+  }
+
+  return { ok: true, primary };
+}
+
+/**
+ * Ensure a junction row exists for (record, collection). Idempotent.
+ * Used when a record is created — we always make sure the new record is
+ * "in" the collection it was created in.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} recordId
+ * @param {string} collectionId
+ */
+export async function ensureRecordInCollection(supabase, userId, recordId, collectionId) {
+  // RLS will enforce ownership of both sides — the policies are written to
+  // require the user owns the record AND the collection. Belt-and-braces:
+  // a quick ownership check up front gives clearer error surface.
+  const [{ data: record }, { data: coll }] = await Promise.all([
+    supabase.from('records').select('id').eq('id', recordId).eq('user_id', userId).maybeSingle(),
+    supabase.from('collections').select('id').eq('id', collectionId).eq('user_id', userId).maybeSingle()
+  ]);
+  if (!record || !coll) return { ok: false, error: 'Record or collection not found.' };
+
+  // ON CONFLICT DO NOTHING via upsert with the primary key
+  const { error } = await supabase
+    .from('record_collections')
+    .upsert(
+      { record_id: recordId, collection_id: collectionId },
+      { onConflict: 'record_id,collection_id', ignoreDuplicates: true }
+    );
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Remove a record from one collection. The record stays alive in the
+ * inventory; just the junction row goes. If this was the record's last
+ * collection, the call is refused — records must always have a home.
+ *
+ * Also keeps the legacy records.collection_id in sync: if the removed
+ * collection was the primary, reassigns to one of the remaining ones.
+ *
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} recordId
+ * @param {string} collectionId
+ */
+export async function removeRecordFromCollection(supabase, userId, recordId, collectionId) {
+  // Load the record's current memberships
+  const { data: record } = await supabase
+    .from('records')
+    .select('id, collection_id')
+    .eq('id', recordId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!record) return { ok: false, error: 'Record not found.' };
+
+  const { data: memberships } = await supabase
+    .from('record_collections')
+    .select('collection_id')
+    .eq('record_id', recordId);
+  const current = (memberships ?? []).map((m) => m.collection_id);
+
+  if (current.length <= 1) {
+    return {
+      ok: false,
+      error: 'This is the record\'s only collection — archive or delete the record instead.'
+    };
+  }
+  if (!current.includes(collectionId)) {
+    // Already not in that collection — treat as success (idempotent)
+    return { ok: true, primary: record.collection_id };
+  }
+
+  // Delete the junction row
+  const { error: delErr } = await supabase
+    .from('record_collections')
+    .delete()
+    .eq('record_id', recordId)
+    .eq('collection_id', collectionId);
+  if (delErr) return { ok: false, error: delErr.message };
+
+  // If we just removed the primary, reassign to another remaining one
+  let primary = record.collection_id;
+  if (record.collection_id === collectionId) {
+    primary = current.find((c) => c !== collectionId);
+    const { error: upErr } = await supabase
+      .from('records')
+      .update({ collection_id: primary })
+      .eq('id', recordId)
+      .eq('user_id', userId);
+    if (upErr) return { ok: false, error: upErr.message };
+  }
+
+  return { ok: true, primary };
 }

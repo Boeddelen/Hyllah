@@ -1,5 +1,14 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { loadCollection, loadCollectionFacets, loadRecords } from '$lib/server/db';
+import {
+  loadCollection,
+  loadCollectionFacets,
+  loadRecords,
+  loadCollections,
+  loadRecordCollections,
+  setRecordCollections,
+  ensureRecordInCollection,
+  removeRecordFromCollection
+} from '$lib/server/db';
 
 /** Parse a comma-separated URL param into a clean string array. */
 function arrParam(url, key) {
@@ -35,8 +44,8 @@ export const load = async ({ params, parent, url, locals: { supabase } }) => {
   const cardBackView = profile?.card_back_view ?? 'details';
   const withTracks = cardBackView === 'tracklist' || cardBackView === 'both';
 
-  // Records + facets in parallel
-  const [records, facets] = await Promise.all([
+  // Records + facets + all-collections in parallel
+  const [records, facets, allCollections] = await Promise.all([
     loadRecords(supabase, user.id, params.collectionId, {
       withTracks,
       query,
@@ -45,13 +54,15 @@ export const load = async ({ params, parent, url, locals: { supabase } }) => {
       tags,
       sort
     }),
-    loadCollectionFacets(supabase, user.id, params.collectionId)
+    loadCollectionFacets(supabase, user.id, params.collectionId),
+    loadCollections(supabase, user.id)
   ]);
 
   return {
     collection,
     records,
     facets,
+    allCollections,
     filter: { query, formats, conditions, tags, sort }
   };
 };
@@ -186,6 +197,31 @@ function parseTracklist(form) {
 }
 
 /**
+ * Parse the modal's collections multi-select.
+ *
+ * The form sends a 'collections' field as a comma-separated list of collection
+ * IDs that the user has selected. We validate the UUID shape; the page-server
+ * then verifies ownership against the user's actual collections.
+ *
+ * Returns an array (possibly empty) of collection IDs, or null if absent.
+ * The primary collection (i.e. params.collectionId on this page) is always
+ * present in the result so the caller can union it with the selection.
+ *
+ * @param {FormData} form
+ * @param {string} primaryCollectionId
+ */
+function parseCollections(form, primaryCollectionId) {
+  const raw = (form.get('collections') ?? '').toString();
+  if (!raw.trim()) return null;
+  const ids = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
+  // De-duplicate AND make sure the primary is included
+  return Array.from(new Set([primaryCollectionId, ...ids]));
+}
+
+/**
  * Look for potential duplicates: same artist + title in this user's collections.
  * Returns at most 3 matches.
  */
@@ -238,14 +274,33 @@ export const actions = {
 
     if (dbError) return fail(500, { action: 'create', error: dbError.message });
 
+    // Dual-write: the new record is in its primary collection. The legacy
+    // records.collection_id is already set by the insert above; mirror it
+    // into the junction table so the rest of the app sees it consistently.
+    const ensureRes = await ensureRecordInCollection(
+      supabase,
+      user.id,
+      data.id,
+      params.collectionId
+    );
+    if (!ensureRes.ok) {
+      console.error('Junction insert failed (non-fatal for record create):', ensureRes.error);
+    }
+
+    // If the user picked additional collections in the modal, add them too.
+    const extraCollections = parseCollections(form, params.collectionId);
+    if (extraCollections && extraCollections.length > 0) {
+      const set = Array.from(new Set([params.collectionId, ...extraCollections]));
+      const res = await setRecordCollections(supabase, user.id, data.id, set);
+      if (!res.ok) console.error('setRecordCollections failed (non-fatal):', res.error);
+    }
+
     // Persist tracklist if provided (separate table, linked by record_id)
     const tracklist = parseTracklist(form);
     if (tracklist && tracklist.length > 0) {
       const tracks = tracklist.map((t) => ({ ...t, record_id: data.id }));
       const { error: tracksError } = await supabase.from('tracks').insert(tracks);
       if (tracksError) {
-        // Non-fatal: record was created, tracks failed to save.
-        // Surface a warning but don't roll back the record.
         console.error('Track insert failed:', tracksError);
       }
     }
@@ -274,6 +329,17 @@ export const actions = {
       .eq('user_id', user.id);
 
     if (dbError) return fail(500, { action: 'update', error: dbError.message });
+
+    // If the modal sent a collections selection, sync the junction table.
+    // The primary (params.collectionId) is always included, so a record
+    // can never end up with zero collections via this path.
+    const collectionSet = parseCollections(form, params.collectionId);
+    if (collectionSet !== null) {
+      const res = await setRecordCollections(supabase, user.id, recordId, collectionSet);
+      if (!res.ok) {
+        console.error('setRecordCollections failed (non-fatal):', res.error);
+      }
+    }
 
     // If tracklist is sent on update, replace existing tracks atomically.
     // Empty tracklist field means "leave existing tracks alone".
@@ -455,5 +521,32 @@ export const actions = {
 
     if (dbError) return fail(500, { action: 'unlinkDiscogs', error: dbError.message });
     return { action: 'unlinkDiscogs', success: true };
+  },
+
+  /**
+   * Remove a record from this collection ONLY. The record stays alive in the
+   * user's inventory (it must still be in at least one other collection).
+   * Used by the card-level "Remove from this collection" action.
+   */
+  removeFromCollection: async ({ request, params, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const recordId = str(form.get('id'));
+    if (!recordId) return fail(400, { action: 'removeFromCollection', error: 'Missing record id' });
+
+    const res = await removeRecordFromCollection(
+      supabase,
+      user.id,
+      recordId,
+      params.collectionId
+    );
+    if (!res.ok) {
+      // Distinguish the "only collection" case so the UI can offer to archive instead
+      const status = res.error?.includes('only collection') ? 409 : 500;
+      return fail(status, { action: 'removeFromCollection', error: res.error });
+    }
+    return { action: 'removeFromCollection', success: true, recordId };
   }
 };

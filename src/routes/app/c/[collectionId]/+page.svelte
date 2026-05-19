@@ -231,6 +231,38 @@
     }
   }
 
+  /**
+   * Remove a record from THIS collection only — the record stays in
+   * inventory and in any other collections it belongs to.
+   * The server enforces "can't leave last collection"; we additionally
+   * guard the UI by only showing the button when collection_count > 1.
+   */
+  async function removeFromCollection(record) {
+    flippedId = null;
+    const fd = new FormData();
+    fd.append('id', record.id);
+    try {
+      const res = await fetch('?/removeFromCollection', { method: 'POST', body: fd });
+      // SvelteKit form actions return a JSON wrapper — peek for error feedback
+      if (!res.ok) {
+        // 409: this was the record's only collection. Suggest archive instead.
+        if (res.status === 409) {
+          alert(
+            `"${record.artist} – ${record.title}" is only in this collection.\n\n` +
+            `Archive or delete it instead, or add it to another collection first.`
+          );
+          return;
+        }
+        alert('Could not remove from collection — please try again.');
+        return;
+      }
+      await invalidateAll();
+    } catch (err) {
+      console.error('removeFromCollection failed', err);
+      alert('Could not remove from collection — please try again.');
+    }
+  }
+
   // ── Stats ────────────────────────────────────────
   let totalCount = $derived(visibleRecords.length);
   let totalValue = $derived(
@@ -503,6 +535,20 @@
               <button class="back-btn edit-btn" onclick={(e) => openEdit(record, e)}>
                 ✎ Edit
               </button>
+              {#if (record.collection_count ?? 1) > 1}
+                <button
+                  class="back-btn unlink-btn"
+                  title="Remove this record from this collection. It will stay in your other collections."
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Remove "${record.artist} – ${record.title}" from "${collection.name}"?\n\nThe record stays in your other collections.`)) {
+                      removeFromCollection(record);
+                    }
+                  }}
+                >
+                  ⊖ Remove here
+                </button>
+              {/if}
               <button
                 class="back-btn archive-btn"
                 onclick={(e) => {
@@ -531,7 +577,13 @@
   {/if}
 </div>
 
-<RecordModal bind:open={modalOpen} record={editingRecord} onclose={onModalClose} />
+<RecordModal
+  bind:open={modalOpen}
+  record={editingRecord}
+  onclose={onModalClose}
+  allCollections={data.allCollections ?? []}
+  currentCollectionId={collection.id}
+/>
 
 {#if pendingDelete}
   <UndoToast
@@ -898,8 +950,11 @@
   .archive-btn:hover { color: var(--ink); }
   .delete-btn { color: var(--ink-3); }
   .delete-btn:hover { color: var(--danger); background: rgba(198, 74, 74, 0.08); }
+  .unlink-btn { color: var(--ink-3); }
+  .unlink-btn:hover { color: var(--ink); }
   .edit-btn { border-right: 1px solid var(--groove); }
   .archive-btn { border-right: 1px solid var(--groove); }
+  .unlink-btn { border-right: 1px solid var(--groove); }
 
   @media (max-width: 840px) {
     .page { padding: 24px 18px 60px; }
