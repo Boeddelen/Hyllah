@@ -409,6 +409,8 @@
     <div class="record-grid">
       {#each visibleRecords as record (record.id)}
         {@const isFlipped = flippedId === record.id}
+        {@const frontValue = valueOf(record, valuationOpts)}
+        {@const cv = currentValueOf(record, valuationOpts)}
         <div
           class="record-card"
           class:flipped={isFlipped}
@@ -438,7 +440,6 @@
               </div>
               <div class="card-footer-front">
                 <span class="condition-pill">{shortCondition(record.condition)}</span>
-                {@const frontValue = valueOf(record, valuationOpts)}
                 {#if frontValue > 0}
                   <span class="card-value">{formatCurrency(toDisplay(frontValue), displayCurrency, { compact: true })}</span>
                 {/if}
@@ -490,7 +491,6 @@
                       <span class="detail-value">{formatCurrency(toDisplay(Number(record.purchase_price)), displayCurrency)}</span>
                     </div>
                   {/if}
-                  {@const cv = currentValueOf(record, valuationOpts)}
                   {#if cv.source !== 'none'}
                     <div class="detail-row">
                       <span class="detail-label">
