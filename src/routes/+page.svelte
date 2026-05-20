@@ -1,6 +1,11 @@
 <script>
+  import { page } from '$app/state';
+
   /** @type {{ data: import('./$types').PageData }} */
   let { data } = $props();
+
+  // Show a calm farewell when the user lands here right after deleting
+  let showDeletedNotice = $derived(page.url.searchParams.get('deleted') === '1');
 </script>
 
 <svelte:head>
@@ -8,6 +13,18 @@
 </svelte:head>
 
 <main>
+  {#if showDeletedNotice}
+    <div class="deleted-banner">
+      <div class="deleted-banner-inner">
+        <div class="deleted-title">Your account has been deleted.</div>
+        <div class="deleted-text">
+          All your records, collections, and profile data have been removed from Retro Vault.
+          Thank you for trying it out.
+        </div>
+      </div>
+    </div>
+  {/if}
+
   <div class="hero">
     <div class="hero-inner">
       <div class="brand">
@@ -91,7 +108,7 @@
           <div class="feature-num">05</div>
           <h3>GDPR clean</h3>
           <p>
-            Built in Norway, hosted in Zürich. Magic-link login means we never store your password
+            Built in Norway, hosted in Frankfurt. Magic-link login means we never store your password
             because there isn't one. No tracking cookies.
           </p>
         </div>
@@ -141,6 +158,30 @@
 </main>
 
 <style>
+  /* ── Deletion notice ──────────────────────────────────── */
+  .deleted-banner {
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--groove);
+    padding: 16px 24px;
+  }
+  .deleted-banner-inner {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .deleted-title {
+    font-family: var(--ff-display);
+    font-size: 16px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .deleted-text {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.5;
+  }
+
   /* ── Hero ──────────────────────────────────────────────── */
   .hero {
     min-height: 92vh;

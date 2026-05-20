@@ -454,12 +454,36 @@
     </div>
   </section>
 
+  <!-- ── Your data (export + delete) ───────────────── -->
   <section class="section">
-    <h2>Coming soon</h2>
-    <p class="placeholder">
-      Username for public profile · Display currency · Theme &amp; mood preferences · Visible
-      record formats · Data export · Account deletion
+    <h2>Your data</h2>
+    <p class="lede">
+      Take your collection with you, or leave for good. Your data is yours.
     </p>
+
+    <div class="card">
+      <div class="data-row">
+        <div class="data-row-text">
+          <div class="data-row-title">Download a copy</div>
+          <div class="data-row-hint">
+            Everything you own — profile, collections, records, tracklists, and the
+            many-to-many links between them — in one JSON file.
+          </div>
+        </div>
+        <a href="/api/account/export" class="btn ghost" download>Export JSON</a>
+      </div>
+
+      <div class="data-row danger-row">
+        <div class="data-row-text">
+          <div class="data-row-title danger-title">Delete account</div>
+          <div class="data-row-hint">
+            Permanent. Removes your records, collections, profile, and Discogs link.
+            You'll be asked to type a confirmation phrase.
+          </div>
+        </div>
+        <a href="/app/settings/delete" class="btn ghost danger-link">Delete…</a>
+      </div>
+    </div>
   </section>
 </div>
 
@@ -895,9 +919,56 @@
     color: var(--ink-3);
   }
 
+  /* ── Your data (export + delete) ─────────────── */
+  .data-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px 0;
+  }
+  .data-row + .data-row { border-top: 1px solid var(--groove); }
+  .data-row-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .data-row-title {
+    font-family: var(--ff-display);
+    font-size: 16px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .data-row-title.danger-title {
+    color: var(--danger);
+  }
+  .data-row-hint {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+  .btn.ghost.danger-link {
+    color: var(--danger);
+    border-color: var(--groove);
+  }
+  .btn.ghost.danger-link:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
   @media (max-width: 640px) {
     .page {
       padding: 24px 22px 60px;
+    }
+    .data-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .data-row .btn {
+      justify-content: center;
+      width: 100%;
     }
   }
 </style>
