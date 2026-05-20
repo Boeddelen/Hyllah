@@ -12,16 +12,20 @@
    * Props:
    *  - supabase: the browser Supabase client (from page data)
    *  - userId:   current user's id (for the storage path)
+   *  - bucket:   storage bucket name (default: 'covers'; can be 'avatars' etc.)
    *  - recordId: record id (for the storage path); if null, uses a tmp id
+   *  - cropToSquare: force square crop on upload (toggle override)
+   *  - maxSizeMb: max file size in MB (default: 2)
    *  - onuploaded: (url: string) => void
    *  - oncancel?: () => void
    */
-  let { supabase, userId, recordId = null, onuploaded, oncancel } = $props();
+  let { supabase, userId, bucket = 'covers', recordId = null, cropToSquare: forceCropToSquare = false, maxSizeMb = 2, onuploaded, oncancel } = $props();
 
   // Limits — keep these aligned with the storage bucket's file_size_limit
   const MAX_DIMENSION = 1200;       // Longest edge after compression
   const TARGET_QUALITY = 0.82;      // WebP quality
   const ACCEPT_TYPES = 'image/jpeg,image/png,image/webp';
+  const MAX_SIZE_BYTES = maxSizeMb * 1024 * 1024;
 
   let stage = $state('pick');       // 'pick' | 'edit' | 'uploading'
   let errorMsg = $state('');
@@ -34,7 +38,7 @@
   let imgNaturalH = $state(0);
 
   // Crop settings
-  let cropToSquare = $state(false);  // OFF by default — preserve original ratio per user choice
+  let cropToSquare = $state(forceCropToSquare);  // Respect forced parameter
   let zoom = $state(1);              // 1 = fit-cover; values >1 zoom in
   let offsetX = $state(0);           // pan offsets in % of the cropper viewport
   let offsetY = $state(0);
@@ -179,14 +183,14 @@
 
       progressPct = 45;
 
-      // Path: covers/{userId}/{recordId-or-tmp}-{rand}.webp
+      // Path: {bucket}/{userId}/{recordId-or-tmp}-{rand}.webp
       // The random suffix ensures a fresh URL each upload (cache busting).
       const tmpId = recordId ?? `tmp-${Date.now().toString(36)}`;
       const rand = Math.random().toString(36).slice(2, 8);
       const path = `${userId}/${tmpId}-${rand}.webp`;
 
       const { error: upErr } = await supabase.storage
-        .from('covers')
+        .from(bucket)
         .upload(path, blob, {
           contentType: 'image/webp',
           upsert: false,
@@ -196,7 +200,7 @@
 
       progressPct = 90;
 
-      const { data } = supabase.storage.from('covers').getPublicUrl(path);
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
       const publicUrl = data?.publicUrl;
       if (!publicUrl) throw new Error('Could not resolve uploaded image URL.');
 

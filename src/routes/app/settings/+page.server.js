@@ -223,5 +223,35 @@ export const actions = {
         encodeURIComponent('Could not save profile — please try again.'));
     }
     throw redirect(303, '/app/settings?profile=saved');
+  },
+
+  /** Update or remove the user's avatar. */
+  updateAvatarUrl: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const action = form.get('action')?.toString();
+
+    if (action === 'removeAvatar') {
+      // Remove the avatar
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: null })
+        .eq('id', user.id);
+      if (error) console.error('Remove avatar failed:', error);
+      return; // No redirect — async request
+    }
+
+    // Set a new avatar URL
+    const avatarUrl = form.get('avatarUrl')?.toString();
+    if (!avatarUrl) return;
+
+    const { error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', user.id);
+
+    if (error) console.error('updateAvatarUrl failed:', error);
   }
 };

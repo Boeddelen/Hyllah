@@ -87,6 +87,16 @@
 
     <div class="sidebar-footer">
       <div class="user-info">
+        {#if data.profile?.avatar_url}
+          <img src={data.profile.avatar_url} alt="" class="user-avatar" />
+        {:else}
+          <div class="user-avatar-placeholder">
+            <svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="24" cy="16" r="7" />
+              <path d="M 12 32 Q 12 24 24 24 Q 36 24 36 32 L 36 40 Q 36 44 32 44 L 16 44 Q 12 44 12 40 Z" />
+            </svg>
+          </div>
+        {/if}
         <div class="user-name">
           {data.profile?.display_name || data.profile?.username || data.user.email}
         </div>
@@ -240,9 +250,35 @@
   }
 
   .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 10px;
     padding: 0 4px;
     overflow: hidden;
+  }
+
+  .user-avatar,
+  .user-avatar-placeholder {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+  }
+  .user-avatar {
+    object-fit: cover;
+  }
+  .user-avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .user-avatar-placeholder svg {
+    width: 18px;
+    height: 18px;
+    color: var(--ink-3);
   }
 
   .user-name {

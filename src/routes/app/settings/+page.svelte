@@ -7,6 +7,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { getTheme, setTheme } from '$lib/theme.js';
   import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from '$lib/currency.js';
+  import AvatarUpload from '$lib/components/AvatarUpload.svelte';
 
   let { data } = $props();
 
@@ -81,6 +82,33 @@
   function switchTheme(t) {
     currentTheme = t;
     setTheme(t);
+  }
+
+  // ── Avatar actions ─────────────────────────────────────────
+  async function updateAvatar(url) {
+    // Fire a POST to updateAvatarUrl action on the server
+    const formData = new FormData();
+    formData.append('avatarUrl', url);
+    try {
+      const res = await fetch('?/updateAvatarUrl', {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) console.error('Avatar update failed');
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+    }
+  }
+
+  function removeAvatar() {
+    if (confirm('Remove your avatar?')) {
+      const formData = new FormData();
+      formData.append('action', 'removeAvatar');
+      fetch('?/updateAvatarUrl', {
+        method: 'POST',
+        body: formData
+      }).catch((err) => console.error('Avatar remove error:', err));
+    }
   }
 
   let banner = $derived.by(() => {
@@ -162,6 +190,40 @@
     </p>
 
     <div class="card">
+      <!-- Avatar ─────────────────────────────────────────────── -->
+      <div class="avatar-row">
+        <div class="avatar-container">
+          {#if data.profile?.avatar_url}
+            <img src={data.profile.avatar_url} alt="Your avatar" class="avatar-image" />
+          {:else}
+            <div class="avatar-placeholder">
+              <svg class="avatar-icon" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Simple head + shoulders silhouette -->
+                <circle cx="24" cy="16" r="7" />
+                <path d="M 12 32 Q 12 24 24 24 Q 36 24 36 32 L 36 40 Q 36 44 32 44 L 16 44 Q 12 44 12 40 Z" />
+              </svg>
+            </div>
+          {/if}
+        </div>
+        <div class="avatar-actions">
+          <AvatarUpload
+            supabase={data.supabase}
+            userId={data.user.id}
+            onUploadComplete={(url) => {
+              // Update the profile immediately so the UI reflects it
+              if (data.profile) data.profile.avatar_url = url;
+              // Also update the server — submit a form action
+              updateAvatar(url);
+            }}
+          />
+          {#if data.profile?.avatar_url}
+            <button type="button" class="btn ghost small danger" onclick={removeAvatar}>
+              Remove avatar
+            </button>
+          {/if}
+        </div>
+      </div>
+
       <form
         method="POST"
         action="?/updateProfile"
@@ -585,6 +647,49 @@
     border: 1px solid var(--groove);
     border-radius: var(--radius-lg);
     padding: 4px 24px;
+  }
+
+  /* ── Avatar ──────────────────────────────────────── */
+  .avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--groove);
+  }
+  .avatar-container {
+    flex-shrink: 0;
+  }
+  .avatar-image,
+  .avatar-placeholder {
+    display: block;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+  }
+  .avatar-image {
+    object-fit: cover;
+  }
+  .avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .avatar-icon {
+    width: 42px;
+    height: 42px;
+    color: var(--ink-3);
+  }
+  .avatar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .avatar-actions .btn {
+    font-size: 12px;
+    padding: 8px 12px;
   }
 
   .row {
