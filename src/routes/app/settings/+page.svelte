@@ -362,8 +362,6 @@
     </div>
   </section>
 
-  <section class="section">
-    <h2>Coming soon</h2>
   <!-- ── Display preferences ─────────────────────── -->
   <section class="section">
     <h2>Display</h2>

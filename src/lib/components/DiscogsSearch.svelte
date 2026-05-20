@@ -130,7 +130,10 @@
 
 <div class="discogs-search">
   <div class="search-input-wrap">
-    <span class="search-icon" aria-hidden="true">🔍</span>
+    <svg class="search-icon" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="7" cy="7" r="4.5" />
+      <line x1="10.4" y1="10.4" x2="13.5" y2="13.5" />
+    </svg>
     <input
       type="search"
       bind:value={query}
@@ -196,9 +199,10 @@
   .search-icon {
     position: absolute;
     left: 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--ink-3);
     pointer-events: none;
-    opacity: 0.6;
-    font-size: 13px;
   }
 
   .search-input-wrap input {

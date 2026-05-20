@@ -539,7 +539,7 @@
               class="link-cta"
               onclick={() => (showSearch = !showSearch)}
             >
-              {showSearch ? '✕ Hide Discogs search' : '🔍 Search Discogs to autofill'}
+              {showSearch ? 'Hide Discogs search' : 'Search Discogs to autofill'}
             </button>
           {/if}
 
@@ -564,10 +564,10 @@
             </div>
             <div class="cover-actions">
               <button type="button" class="link-btn small" onclick={() => (showUpload = true)}>
-                🖼️ Replace
+                Replace
               </button>
               <button type="button" class="link-btn small danger" onclick={removeCover}>
-                ✕ Remove cover
+                Remove cover
               </button>
             </div>
           {:else if showUpload}
@@ -580,10 +580,15 @@
             />
           {:else}
             <div class="cover-empty">
-              <div class="cover-empty-icon">🎵</div>
+              <svg class="cover-empty-icon" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Album frame with center hole — neutral, theme-aware -->
+                <rect x="10" y="10" width="44" height="44" rx="2" />
+                <circle cx="32" cy="32" r="11" />
+                <circle cx="32" cy="32" r="2.5" fill="currentColor" />
+              </svg>
               <div class="cover-empty-text">No cover image yet.</div>
               <button type="button" class="link-btn small" onclick={() => (showUpload = true)}>
-                🖼️ Upload one
+                Upload one
               </button>
             </div>
           {/if}
@@ -997,7 +1002,11 @@
     border: 1px dashed var(--groove);
     border-radius: var(--radius);
   }
-  .cover-empty-icon { font-size: 26px; opacity: 0.5; }
+  .cover-empty-icon {
+    width: 36px; height: 36px;
+    color: var(--ink-3);
+    display: block;
+  }
   .cover-empty-text {
     font-family: var(--ff-display);
     font-style: italic;

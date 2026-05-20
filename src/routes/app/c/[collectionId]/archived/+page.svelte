@@ -52,7 +52,7 @@
             {#if record.image_url}
               <img src={record.image_url} alt="{record.artist} – {record.title}" loading="lazy" />
             {:else}
-              <div class="cover-placeholder">{FORMATS[record.format]?.icon ?? '🎵'}</div>
+              <div class="cover-placeholder">{FORMATS[record.format]?.icon ?? '—'}</div>
             {/if}
           </div>
 
@@ -97,7 +97,7 @@
               }}
             >
               <input type="hidden" name="id" value={record.id} />
-              <button type="submit" class="btn ghost danger">✕ Delete forever</button>
+              <button type="submit" class="btn ghost danger">Delete forever</button>
             </form>
           </div>
         </article>

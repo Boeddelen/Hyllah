@@ -68,7 +68,6 @@
           class:active={isActive('/app/stats')}
           onclick={() => (sidebarOpen = false)}
         >
-          <span class="nav-icon">📊</span>
           <span class="nav-text">Stats</span>
         </a>
       </div>
@@ -81,7 +80,6 @@
           class:active={isActive('/app/settings')}
           onclick={() => (sidebarOpen = false)}
         >
-          <span class="nav-icon">⚙</span>
           <span class="nav-text">Settings</span>
         </a>
       </div>

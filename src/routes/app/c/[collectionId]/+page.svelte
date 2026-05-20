@@ -365,8 +365,8 @@
   </header>
 
   <div class="page-actions">
-    <button class="btn primary" onclick={openAdd}>＋ Add record</button>
-    <a class="btn ghost" href="/app/c/{collection.id}/archived">⛔ Archive</a>
+    <button class="btn primary" onclick={openAdd}>Add record</button>
+    <a class="btn ghost" href="/app/c/{collection.id}/archived">Archive</a>
   </div>
 
   <FilterBar
@@ -381,14 +381,26 @@
   {#if visibleRecords.length === 0}
     {#if hasActiveFilters}
       <div class="empty-state">
-        <div class="empty-icon">🔍</div>
+        <svg class="empty-svg" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Magnifying glass — handle and ring -->
+          <circle cx="27" cy="27" r="16" />
+          <line x1="39" y1="39" x2="52" y2="52" />
+        </svg>
         <h2>Nothing matches.</h2>
         <p>Try clearing some filters, or search for something else.</p>
         <a class="btn ghost" href="/app/c/{collection.id}">Clear all filters</a>
       </div>
     {:else}
       <div class="empty-state">
-        <div class="empty-icon">🎵</div>
+        <svg class="empty-svg" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Empty shelf — three horizontal lines -->
+          <line x1="10" y1="20" x2="54" y2="20" />
+          <line x1="10" y1="34" x2="54" y2="34" />
+          <line x1="10" y1="48" x2="54" y2="48" />
+          <!-- Subtle uprights -->
+          <line x1="10" y1="14" x2="10" y2="54" opacity="0.5" />
+          <line x1="54" y1="14" x2="54" y2="54" opacity="0.5" />
+        </svg>
         <h2>Nothing on the shelf yet.</h2>
         <p>Click <strong>Add record</strong> to put the first one in.</p>
       </div>
@@ -413,7 +425,7 @@
                 <img src={record.image_url} alt="{record.artist} – {record.title}" loading="lazy" />
               {:else}
                 <div class="cover-placeholder">
-                  <span class="cover-format-icon">{FORMATS[record.format]?.icon ?? '🎵'}</span>
+                  <span class="cover-format-icon">{FORMATS[record.format]?.icon ?? '—'}</span>
                 </div>
               {/if}
               <div class="cover-badge">{FORMATS[record.format]?.label ?? record.format}</div>
@@ -559,7 +571,7 @@
 
             <div class="card-back-actions">
               <button class="back-btn edit-btn" onclick={(e) => openEdit(record, e)}>
-                ✎ Edit
+                Edit
               </button>
               {#if (record.collection_count ?? 1) > 1}
                 <button
@@ -572,7 +584,7 @@
                     }
                   }}
                 >
-                  ⊖ Remove here
+                  Remove here
                 </button>
               {/if}
               <button
@@ -584,7 +596,7 @@
                   }
                 }}
               >
-                📦 Archive
+                Archive
               </button>
               <button
                 class="back-btn delete-btn"
@@ -593,7 +605,7 @@
                   softDelete(record);
                 }}
               >
-                ✕ Delete
+                Delete
               </button>
             </div>
           </div>
@@ -699,7 +711,12 @@
     max-width: 500px;
     margin: 0 auto;
   }
-  .empty-icon { font-size: 50px; margin-bottom: 24px; opacity: 0.7; }
+  .empty-svg {
+    width: 56px; height: 56px;
+    margin: 0 auto 24px;
+    color: var(--ink-3);
+    display: block;
+  }
   .empty-state h2 {
     font-family: var(--ff-display); font-size: 30px;
     font-weight: 400; margin-bottom: 14px;

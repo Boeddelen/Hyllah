@@ -67,7 +67,14 @@
 
   {#if stats.totalCount === 0}
     <div class="empty-state">
-      <div class="empty-icon">📊</div>
+      <svg class="empty-svg" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Three ascending bars -->
+        <rect x="12" y="38" width="8" height="14" />
+        <rect x="28" y="28" width="8" height="24" />
+        <rect x="44" y="18" width="8" height="34" />
+        <!-- Axis -->
+        <line x1="8" y1="54" x2="56" y2="54" opacity="0.5" />
+      </svg>
       <h2>No records yet.</h2>
       <p>Add some records to your collections to see stats here.</p>
     </div>
@@ -229,7 +236,12 @@
     max-width: 500px;
     margin: 60px auto;
   }
-  .empty-icon { font-size: 50px; margin-bottom: 24px; opacity: 0.7; }
+  .empty-svg {
+    width: 56px; height: 56px;
+    margin: 0 auto 24px;
+    color: var(--ink-3);
+    display: block;
+  }
   .empty-state h2 {
     font-family: var(--ff-display); font-size: 30px;
     font-weight: 400; margin-bottom: 14px;

@@ -46,7 +46,7 @@
 
   <div class="actions-row">
     {#if !showCreate}
-      <button class="btn primary" onclick={() => (showCreate = true)}>＋ New collection</button>
+      <button class="btn primary" onclick={() => (showCreate = true)}>New collection</button>
     {/if}
   </div>
 
