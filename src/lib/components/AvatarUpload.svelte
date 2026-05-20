@@ -5,13 +5,6 @@
 
   let showUpload = $state(false);
   let cropShape = $state('circle'); // 'circle' | 'square'
-
-  function handleCoverUploaded(event) {
-    const { detail } = event;
-    const url = typeof detail === 'string' ? detail : detail?.url;
-    showUpload = false;
-    if (onUploadComplete) onUploadComplete(url);
-  }
 </script>
 
 {#if showUpload}
@@ -49,7 +42,10 @@
         bucket="avatars"
         cropToSquare={cropShape === 'square'}
         maxSizeMb={2}
-        onuploaded={handleCoverUploaded}
+        onuploaded={(url) => {
+          showUpload = false;
+          if (onUploadComplete) onUploadComplete(url);
+        }}
         oncancel={() => (showUpload = false)}
       />
     </div>
