@@ -100,7 +100,7 @@ export const actions = {
     throw redirect(303, '/app/settings?discogs=disconnected');
   },
 
-  /** Update display preferences (currently just card_back_view). */
+  /** Update display preferences: card_back_view, use_discogs_prices, show_value_source. */
   updatePreferences: async ({ request, locals: { safeGetSession, supabase } }) => {
     const { user } = await safeGetSession();
     if (!user) throw redirect(303, '/login');
@@ -113,9 +113,17 @@ export const actions = {
       throw redirect(303, '/app/settings?prefs=error');
     }
 
+    // Checkboxes: present in formData only when checked. Treat absent as false.
+    const useDiscogsPrices = form.get('use_discogs_prices') === 'on';
+    const showValueSource = form.get('show_value_source') === 'on';
+
     const { error } = await supabase
       .from('users')
-      .update({ card_back_view: cardBackView })
+      .update({
+        card_back_view: cardBackView,
+        use_discogs_prices: useDiscogsPrices,
+        show_value_source: showValueSource
+      })
       .eq('id', user.id);
 
     if (error) {

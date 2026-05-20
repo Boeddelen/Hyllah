@@ -1,34 +1,18 @@
 import { redirect } from '@sveltejs/kit';
-
-const CONDITION_TO_DISCOGS_KEY = {
-  M: 'Mint (M)',
-  NM: 'Near Mint (NM or M-)',
-  VG_PLUS: 'Very Good Plus (VG+)',
-  VG: 'Very Good (VG)',
-  G_PLUS: 'Good Plus (G+)',
-  G: 'Good (G)',
-  F: 'Fair (F)',
-  P: 'Poor (P)'
-};
-
-/** Best-known current value for a record: value_override > matching Discogs price > 0 */
-function currentValueOf(record) {
-  if (record.value_override != null) return Number(record.value_override) || 0;
-  if (record.prices && record.condition) {
-    const key = CONDITION_TO_DISCOGS_KEY[record.condition];
-    const p = key ? record.prices[key] : null;
-    if (p != null) {
-      const v = typeof p === 'object' ? p.value : p;
-      return Number(v) || 0;
-    }
-  }
-  return 0;
-}
+import { currentValueOf } from '$lib/valuation.js';
+import { loadUserProfile } from '$lib/server/db.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ locals: { safeGetSession, supabase } }) => {
   const { user } = await safeGetSession();
   if (!user) throw redirect(303, '/login');
+
+  // Load the user's valuation preference. Defaults to true (= use Discogs
+  // prices as a fallback) — same as before this preference existed, so
+  // existing behavior doesn't change for anyone who hasn't toggled it off.
+  const profile = await loadUserProfile(supabase, user.id);
+  const useDiscogsPrices = profile?.use_discogs_prices !== false;
+  const valuationOpts = { useDiscogsPrices };
 
   // Pull all active (non-archived, non-pending-delete) records across all collections.
   // For larger collections we may eventually want stored aggregates, but for the
@@ -69,7 +53,7 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
 
   for (const r of list) {
     const paid = r.purchase_price ? Number(r.purchase_price) : 0;
-    const value = currentValueOf(r);
+    const { value } = currentValueOf(r, valuationOpts);
     totalPaid += paid;
     totalValue += value;
 

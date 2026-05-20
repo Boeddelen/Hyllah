@@ -17,6 +17,8 @@
   ];
 
   let cardBackView = $state(data.profile?.card_back_view ?? 'details');
+  let useDiscogsPrices = $state(data.profile?.use_discogs_prices !== false); // default true
+  let showValueSource = $state(data.profile?.show_value_source === true);     // default false
   let savingPrefs = $state(false);
 
   // ── Profile state ──────────────────────────────────────
@@ -415,6 +417,36 @@
             {/each}
           </div>
         </div>
+
+        <div class="pref-row pref-row-bordered">
+          <div class="pref-label">Value calculation</div>
+          <label class="toggle-row">
+            <input type="checkbox" name="use_discogs_prices" bind:checked={useDiscogsPrices} />
+            <span class="toggle-label">
+              <span class="toggle-title">Use Discogs prices for collection value</span>
+              <span class="toggle-hint">
+                When on, records linked to Discogs use the suggested price for their condition
+                as their value — unless you've set a custom value, which always wins.
+                When off, only records with a custom value contribute to totals.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div class="pref-row pref-row-bordered">
+          <div class="pref-label">Card detail</div>
+          <label class="toggle-row">
+            <input type="checkbox" name="show_value_source" bind:checked={showValueSource} />
+            <span class="toggle-label">
+              <span class="toggle-title">Show value source on card back</span>
+              <span class="toggle-hint">
+                Annotates each record's Value row with "your value" or "from Discogs" so it's
+                clear where the number comes from.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div class="pref-actions">
           <button type="submit" class="btn primary" disabled={savingPrefs}>
             {savingPrefs ? 'Saving…' : 'Save preferences'}

@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats';
   import { formatCurrency } from '$lib/currency.js';
+  import { currentValueOf, valueOf, valueSourceLabel } from '$lib/valuation.js';
   import RecordModal from '$lib/components/RecordModal.svelte';
   import UndoToast from '$lib/components/UndoToast.svelte';
   import FilterBar from '$lib/components/FilterBar.svelte';
@@ -13,6 +14,12 @@
   // The user's currency preferences arrive via the app layout server load
   let displayCurrency = $derived(data.displayCurrency ?? 'EUR');
   let rates = $derived(data.rates ?? { EUR: 1 });
+
+  // Valuation preferences from the user's profile
+  let valuationOpts = $derived({
+    useDiscogsPrices: data.profile?.use_discogs_prices !== false  // default true
+  });
+  let showValueSource = $derived(data.profile?.show_value_source === true);
 
   /** Convert a stored-EUR amount to the user's display currency. */
   function toDisplay(amount) {
@@ -281,10 +288,7 @@
   // ── Stats ────────────────────────────────────────
   let totalCount = $derived(visibleRecords.length);
   let totalValue = $derived(
-    visibleRecords.reduce((sum, r) => {
-      const val = r.value_override ?? 0;
-      return sum + (Number(val) || 0);
-    }, 0)
+    visibleRecords.reduce((sum, r) => sum + valueOf(r, valuationOpts), 0)
   );
   let totalPaid = $derived(
     visibleRecords.reduce(
@@ -422,8 +426,9 @@
               </div>
               <div class="card-footer-front">
                 <span class="condition-pill">{shortCondition(record.condition)}</span>
-                {#if record.value_override}
-                  <span class="card-value">{formatCurrency(toDisplay(Number(record.value_override)), displayCurrency, { compact: true })}</span>
+                {@const frontValue = valueOf(record, valuationOpts)}
+                {#if frontValue > 0}
+                  <span class="card-value">{formatCurrency(toDisplay(frontValue), displayCurrency, { compact: true })}</span>
                 {/if}
               </div>
             </div>
@@ -473,15 +478,21 @@
                       <span class="detail-value">{formatCurrency(toDisplay(Number(record.purchase_price)), displayCurrency)}</span>
                     </div>
                   {/if}
-                  {#if record.value_override}
+                  {@const cv = currentValueOf(record, valuationOpts)}
+                  {#if cv.source !== 'none'}
                     <div class="detail-row">
-                      <span class="detail-label">Value</span>
-                      <span class="detail-value accent">{formatCurrency(toDisplay(Number(record.value_override)), displayCurrency)}</span>
+                      <span class="detail-label">
+                        Value
+                        {#if showValueSource}
+                          <span class="value-source">({valueSourceLabel(cv.source)})</span>
+                        {/if}
+                      </span>
+                      <span class="detail-value accent">{formatCurrency(toDisplay(cv.value), displayCurrency)}</span>
                     </div>
                   {/if}
                   {#if hasPrices(record)}
                     {@const myPrice = matchingPriceFor(record)}
-                    {#if myPrice}
+                    {#if myPrice && cv.source !== 'discogs'}
                       <div class="detail-row">
                         <span class="detail-label">Discogs ({shortCondition(record.condition)})</span>
                         <span class="detail-value">{formatCurrency(toDisplay(Number(myPrice)), displayCurrency)}</span>
@@ -826,6 +837,16 @@
     font-family: var(--ff-mono); font-size: 9px;
     letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--ink-3); flex-shrink: 0;
+  }
+  .value-source {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-3);
+    margin-left: 4px;
+    font-weight: normal;
   }
   .detail-value {
     font-family: var(--ff-display); color: var(--ink); text-align: right;
