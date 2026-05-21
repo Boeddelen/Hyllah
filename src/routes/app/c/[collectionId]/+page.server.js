@@ -548,5 +548,47 @@ export const actions = {
       return fail(status, { action: 'removeFromCollection', error: res.error });
     }
     return { action: 'removeFromCollection', success: true, recordId };
+  },
+
+  /**
+   * Toggle a record's public/private visibility.
+   * Used by the card-level privacy toggle button.
+   */
+  toggleRecordPrivacy: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const recordId = str(form.get('id'));
+    const isPublicStr = form.get('isPublic');
+
+    if (!recordId || isPublicStr === null) {
+      return fail(400, { action: 'toggleRecordPrivacy', error: 'Missing fields' });
+    }
+
+    const isPublic = isPublicStr === 'true';
+
+    // Verify ownership before allowing the update
+    const { data: record, error: getErr } = await supabase
+      .from('records')
+      .select('id')
+      .eq('id', recordId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (getErr) return fail(500, { action: 'toggleRecordPrivacy', error: getErr.message });
+    if (!record) return fail(404, { action: 'toggleRecordPrivacy', error: 'Record not found' });
+
+    // Update
+    const { error: updateErr } = await supabase
+      .from('records')
+      .update({ is_public_record: isPublic })
+      .eq('id', recordId);
+
+    if (updateErr) {
+      return fail(500, { action: 'toggleRecordPrivacy', error: updateErr.message });
+    }
+
+    return { action: 'toggleRecordPrivacy', success: true, recordId, isPublic };
   }
 };

@@ -285,6 +285,26 @@
     }
   }
 
+  async function toggleRecordPrivacy(record) {
+    const fd = new FormData();
+    fd.append('id', record.id);
+    fd.append('isPublic', (!record.is_public_record).toString());
+    try {
+      const res = await fetch('?/toggleRecordPrivacy', { method: 'POST', body: fd });
+      if (!res.ok) {
+        alert('Could not update privacy — please try again.');
+        return;
+      }
+      // Optimistic update — flip the boolean immediately
+      record.is_public_record = !record.is_public_record;
+      // Also invalidate so server state syncs if needed
+      await invalidateAll();
+    } catch (err) {
+      console.error('toggleRecordPrivacy failed', err);
+      alert('Could not update privacy — please try again.');
+    }
+  }
+
   // ── Stats ────────────────────────────────────────
   let totalCount = $derived(visibleRecords.length);
   let totalValue = $derived(
@@ -572,6 +592,21 @@
             <div class="card-back-actions">
               <button class="back-btn edit-btn" onclick={(e) => openEdit(record, e)}>
                 Edit
+              </button>
+              <button
+                class="back-btn privacy-btn"
+                class:private={!record.is_public_record}
+                title={record.is_public_record ? 'Hide from public profile' : 'Show on public profile'}
+                onclick={(e) => {
+                  e.stopPropagation();
+                  toggleRecordPrivacy(record);
+                }}
+              >
+                {#if record.is_public_record}
+                  <span class="privacy-icon">👁</span> Public
+                {:else}
+                  <span class="privacy-icon">🔒</span> Private
+                {/if}
               </button>
               {#if (record.collection_count ?? 1) > 1}
                 <button
@@ -1005,7 +1040,21 @@
   .delete-btn:hover { color: var(--danger); background: rgba(198, 74, 74, 0.08); }
   .unlink-btn { color: var(--ink-3); }
   .unlink-btn:hover { color: var(--ink); }
+  .privacy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--ink-2);
+  }
+  .privacy-btn:hover { color: var(--accent); }
+  .privacy-btn.private { color: var(--danger); }
+  .privacy-btn.private:hover { background: rgba(198, 74, 74, 0.08); }
+  .privacy-icon {
+    font-size: 11px;
+  }
   .edit-btn { border-right: 1px solid var(--groove); }
+  .privacy-btn { border-right: 1px solid var(--groove); }
   .archive-btn { border-right: 1px solid var(--groove); }
   .unlink-btn { border-right: 1px solid var(--groove); }
 
