@@ -10,20 +10,39 @@
 //   3. Only records where is_public_record = true are shown
 //   4. Financial data only shown if user enabled show_values_publicly
 //   5. Discogs links only shown if user enabled show_discogs_links_publicly
-//   6. RLS policies at the database level enforce this as a safety layer
+//
+// Why we use the service-role client here:
+//   The public profile is viewed by unauthenticated visitors. RLS policies on
+//   records and collections are scoped to auth.uid() — an anonymous visitor has
+//   no uid, so all queries return empty or error. We use the service-role client
+//   ONLY for SELECT queries on public data that we've already validated
+//   (is_public = true, is_public_record = true). We never expose private data.
 //
 // Caching:
 //   - Single endpoint caches the whole response (profile + collections + records)
 //   - Cache key: username (case-normalized to lowercase)
-//   - TTL: 5 minutes (users can toggle private/public and see results reasonably fast)
-//   - Cache invalidates on any record/user update via db triggers (future optimization)
-//   - Public profiles can be CDN-cached for further speed
+//   - TTL: 5 minutes — users see privacy changes reflected within 5 minutes
 // ─────────────────────────────────────────────────────────────────────────
 
 import { error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { createClient } from '@supabase/supabase-js';
 
-// In a real app, this would be Redis or Memcached.
-// For now, we'll use an in-memory Map. In production, use your caching layer.
+// Service-role client: bypasses RLS for public profile reads.
+// Created once at module load — safe because it's read-only and server-only.
+let _adminClient = null;
+function getAdminClient() {
+  if (_adminClient) return _adminClient;
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured');
+  _adminClient = createClient(PUBLIC_SUPABASE_URL, key, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+  return _adminClient;
+}
+
+// In-memory cache. Fine for Cloudflare Workers (single isolate per region).
 const profileCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -43,7 +62,7 @@ function setCachedProfile(username, data) {
 }
 
 /** @type {import('./$types').PageServerLoad} */
-export const load = async ({ params, locals: { supabase } }) => {
+export const load = async ({ params }) => {
   const { username } = params;
 
   if (!username || typeof username !== 'string') {
@@ -52,34 +71,41 @@ export const load = async ({ params, locals: { supabase } }) => {
 
   // Try cache first
   const cached = getCachedProfile(username);
-  if (cached) {
-    return cached;
-  }
+  if (cached) return cached;
 
-  // ── Load user profile ─────────────────────────────────────────
-  // Case-insensitive lookup; enforce is_public check
-  const { data: user, error: userErr } = await supabase
+  const admin = getAdminClient();
+
+  // ── 1. Load user profile ──────────────────────────────────────
+  // Case-insensitive lookup. Only show public profiles.
+  const { data: user, error: userErr } = await admin
     .from('users')
     .select('id, username, display_name, bio, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly')
     .ilike('username', username)
     .eq('is_public', true)
     .maybeSingle();
 
-  if (userErr) throw error(500, userErr.message);
+  if (userErr) {
+    console.error('Public profile user lookup failed:', userErr);
+    throw error(500, 'Could not load profile');
+  }
   if (!user) throw error(404, 'Profile not found');
 
-  // ── Load collections ──────────────────────────────────────────
-  const { data: collections, error: collectionsErr } = await supabase
+  // ── 2. Load collections ───────────────────────────────────────
+  const { data: collections, error: collectionsErr } = await admin
     .from('collections')
     .select('id, name, icon')
     .eq('user_id', user.id)
     .order('name', { ascending: true });
 
-  if (collectionsErr) throw error(500, collectionsErr.message);
+  if (collectionsErr) {
+    console.error('Public profile collections failed:', collectionsErr);
+    throw error(500, 'Could not load collections');
+  }
 
-  // ── Load public records ───────────────────────────────────────
-  // Only records marked public. Load from all collections.
-  const { data: records, error: recordsErr } = await supabase
+  // ── 3. Load public records with their collection memberships ──
+  // Join through record_collections junction table to properly handle
+  // many-to-many. Filter: only public records, not pending delete.
+  const { data: records, error: recordsErr } = await admin
     .from('records')
     .select(`
       id,
@@ -93,22 +119,27 @@ export const load = async ({ params, locals: { supabase } }) => {
       purchase_price,
       prices,
       discogs_id,
-      collection_id,
-      is_public_record
+      is_public_record,
+      created_at,
+      record_collections ( collection_id )
     `)
     .eq('user_id', user.id)
     .eq('is_public_record', true)
     .eq('is_pending_delete', false)
     .order('created_at', { ascending: false });
 
-  if (recordsErr) throw error(500, recordsErr.message);
+  if (recordsErr) {
+    console.error('Public profile records failed:', recordsErr);
+    throw error(500, 'Could not load records');
+  }
 
-  // ── Build collection summary with thumbnails ──────────────────
-  // For each collection, count public records and collect cover URLs
-  const collectionSummaries = collections.map((coll) => {
-    const collRecords = records.filter((r) => r.collection_id === coll.id);
-    const count = collRecords.length;
-    // Get up to 4 cover images for the preview grid
+  // ── 4. Build collection summaries with cover thumbnails ───────
+  // For each collection, count public records and grab up to 4 cover URLs.
+  // A record can be in multiple collections so we use the junction rows.
+  const collectionSummaries = (collections ?? []).map((coll) => {
+    const collRecords = (records ?? []).filter((r) =>
+      r.record_collections?.some((rc) => rc.collection_id === coll.id)
+    );
     const covers = collRecords
       .filter((r) => r.cover_url)
       .slice(0, 4)
@@ -118,31 +149,26 @@ export const load = async ({ params, locals: { supabase } }) => {
       id: coll.id,
       name: coll.name,
       icon: coll.icon,
-      count,
+      count: collRecords.length,
       covers
     };
   });
 
-  // ── Sanitize financial data ───────────────────────────────────
-  // Strip out prices/values unless user enabled show_values_publicly
-  const safeRecords = records.map((r) => {
-    const safe = { ...r };
-    if (!user.show_values_publicly) {
-      safe.value_override = null;
-      safe.purchase_price = null;
-      safe.prices = null;
-    }
-    // Strip oauth secrets; only keep public discogs_id (if enabled below)
-    return safe;
-  });
-
-  // ── Respect Discogs link preference ───────────────────────────
-  // If user disabled showing Discogs links, don't include IDs in the response
-  const recordsForDisplay = safeRecords.map((r) => {
-    const display = { ...r };
-    if (!user.show_discogs_links_publicly) {
-      display.discogs_id = null;
-    }
+  // ── 5. Sanitize — strip financial data if not enabled ─────────
+  const recordsForDisplay = (records ?? []).map((r) => {
+    const display = {
+      id: r.id,
+      artist: r.artist,
+      title: r.title,
+      cover_url: r.cover_url,
+      format: r.format,
+      year: r.year,
+      condition: r.condition,
+      discogs_id: user.show_discogs_links_publicly ? r.discogs_id : null,
+      value_override: user.show_values_publicly ? r.value_override : null,
+      purchase_price: user.show_values_publicly ? r.purchase_price : null
+      // prices and record_collections stripped — not needed in the response
+    };
     return display;
   });
 
@@ -164,15 +190,13 @@ export const load = async ({ params, locals: { supabase } }) => {
       total_collections: collectionSummaries.length,
       total_value: user.show_values_publicly
         ? recordsForDisplay.reduce((sum, r) => {
-            const val = r.value_override ? Number(r.value_override) : 0;
-            return sum + val;
+            const v = r.value_override ? Number(r.value_override) : 0;
+            return sum + (Number.isFinite(v) ? v : 0);
           }, 0)
         : null
     }
   };
 
-  // Cache the result
   setCachedProfile(username, payload);
-
   return payload;
 };
