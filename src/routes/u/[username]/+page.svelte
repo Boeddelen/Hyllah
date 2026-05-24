@@ -99,8 +99,8 @@
         <div class="records-gallery">
           {#each records.slice(0, 12) as record (record.id)}
             <a href="/u/{user.username}/r/{record.id}" class="record-card">
-              {#if record.cover_url}
-                <img src={record.cover_url} alt="{record.artist} – {record.title}" class="cover" />
+              {#if record.image_url}
+                <img src={record.image_url} alt="{record.artist} – {record.title}" class="cover" />
               {:else}
                 <div class="cover-empty">{FORMATS[record.format]?.icon ?? '—'}</div>
               {/if}

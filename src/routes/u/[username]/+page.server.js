@@ -88,7 +88,7 @@ export const load = async ({ params, locals: { supabase } }) => {
         id,
         artist,
         title,
-        cover_url,
+        image_url,
         format,
         year,
         condition,
@@ -115,9 +115,9 @@ export const load = async ({ params, locals: { supabase } }) => {
     const collectionSummaries = (collections ?? []).map((coll) => {
       const collRecords = (records ?? []).filter((r) => r.collection_id === coll.id);
       const covers = collRecords
-        .filter((r) => r.cover_url)
+        .filter((r) => r.image_url)
         .slice(0, 4)
-        .map((r) => r.cover_url);
+        .map((r) => r.image_url);
 
       return {
         id: coll.id,
@@ -135,7 +135,7 @@ export const load = async ({ params, locals: { supabase } }) => {
       id: r.id,
       artist: r.artist,
       title: r.title,
-      cover_url: r.cover_url,
+      image_url: r.image_url,
       format: r.format,
       year: r.year,
       condition: r.condition,
