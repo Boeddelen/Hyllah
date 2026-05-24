@@ -2,7 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import {
   loadRecords,
   loadCollections,
-  loadAllRecordCollections
+  loadAllRecordCollections,
+  loadVaultFacets
 } from '$lib/server/db';
 
 /** Parse a comma-separated URL param into a clean string array. */
@@ -34,8 +35,8 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
   const cardBackView = profile?.card_back_view ?? 'details';
   const withTracks = cardBackView === 'tracklist' || cardBackView === 'both';
 
-  // Load ALL records (collectionId = null), collections, and junction table
-  const [records, allCollections, recordCollections] = await Promise.all([
+  // Load ALL records (collectionId = null), collections, junction, and facets
+  const [records, allCollections, recordCollections, facets] = await Promise.all([
     loadRecords(supabase, user.id, null, {
       withTracks,
       query,
@@ -45,7 +46,8 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
       sort
     }),
     loadCollections(supabase, user.id),
-    loadAllRecordCollections(supabase, user.id)
+    loadAllRecordCollections(supabase, user.id),
+    loadVaultFacets(supabase, user.id)
   ]);
 
   // Build a map: recordId → [collection names] for display
@@ -72,6 +74,7 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
     records,
     allCollections,
     recordCollectionNames,
+    facets,
     filter: { query, formats, conditions, tags, sort }
   };
 };

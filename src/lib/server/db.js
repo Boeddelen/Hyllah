@@ -294,6 +294,47 @@ export async function loadCollectionFacets(supabase, userId, collectionId) {
   };
 }
 
+/**
+ * Load facets (distinct formats, conditions, tags) for ALL of a user's records.
+ * Used by the "All records" vault view. Same shape as loadCollectionFacets
+ * but without the junction-table filter.
+ */
+export async function loadVaultFacets(supabase, userId) {
+  const { data, error } = await supabase
+    .from('records')
+    .select('format, condition, tags')
+    .eq('user_id', userId)
+    .eq('is_archived', false)
+    .eq('is_pending_delete', false);
+  if (error) throw error;
+
+  const formats = new Set();
+  const conditions = new Set();
+  const tagCounts = new Map();
+
+  for (const row of data ?? []) {
+    if (row.format) formats.add(row.format);
+    if (row.condition) conditions.add(row.condition);
+    if (Array.isArray(row.tags)) {
+      for (const t of row.tags) {
+        if (typeof t !== 'string') continue;
+        const tag = t.trim();
+        if (!tag) continue;
+        tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+      }
+    }
+  }
+
+  return {
+    formats: Array.from(formats),
+    conditions: Array.from(conditions),
+    tags: Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .map(([tag, count]) => ({ tag, count }))
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Many-to-many records ↔ collections (Phase 1D.2a, dual-write phase)
 // ════════════════════════════════════════════════════════════════════════════

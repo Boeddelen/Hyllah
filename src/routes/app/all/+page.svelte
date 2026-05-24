@@ -13,6 +13,7 @@
   const allCollections = $derived(data.allCollections ?? []);
   const recordCollectionNames = $derived(data.recordCollectionNames ?? {});
   const filter = $derived(data.filter);
+  const facets = $derived(data.facets ?? { formats: [], conditions: [], tags: [] });
 
   const profile = $derived(data.profile);
   const rates = $derived(data.rates);
@@ -72,6 +73,7 @@
     conditions={filter.conditions}
     tags={filter.tags}
     sort={filter.sort}
+    {facets}
     onchange={onFilterChange}
   />
 
