@@ -39,15 +39,22 @@ function setCachedProfile(username, data) {
 export const load = async ({ params, locals: { supabase } }) => {
   const { username } = params;
 
+  console.log(`[public-profile] load starting for username: ${username}`);
+
   if (!username || typeof username !== 'string') {
+    console.log(`[public-profile] invalid username: ${username}`);
     throw error(404, 'Profile not found');
   }
 
+  // Try cache first
   const cached = getCachedProfile(username);
-  if (cached) return cached;
+  if (cached) {
+    console.log(`[public-profile] cache hit for ${username}`);
+    return cached;
+  }
 
   // ── 1. Load public user profile ───────────────────────────────
-  // RLS policy "public_profiles_anon_read" allows this for anon visitors.
+  console.log(`[public-profile] querying users table for username: ${username}`);
   const { data: user, error: userErr } = await supabase
     .from('users')
     .select(`
@@ -65,12 +72,24 @@ export const load = async ({ params, locals: { supabase } }) => {
     .maybeSingle();
 
   if (userErr) {
-    console.error('[public profile] user lookup failed:', userErr.message, userErr.code);
-    throw error(500, 'Could not load profile');
+    console.error(`[public-profile] ERROR: user query failed`, {
+      code: userErr.code,
+      message: userErr.message,
+      details: userErr.details,
+      hint: userErr.hint
+    });
+    throw error(500, `User query failed: ${userErr.message}`);
   }
-  if (!user) throw error(404, 'Profile not found');
+
+  if (!user) {
+    console.log(`[public-profile] user not found or not public: ${username}`);
+    throw error(404, 'Profile not found');
+  }
+
+  console.log(`[public-profile] user found: ${user.id} (${user.username})`);
 
   // ── 2. Load collections ───────────────────────────────────────
+  console.log(`[public-profile] querying collections for user: ${user.id}`);
   const { data: collections, error: collectionsErr } = await supabase
     .from('collections')
     .select('id, name, icon')
@@ -78,11 +97,18 @@ export const load = async ({ params, locals: { supabase } }) => {
     .order('name', { ascending: true });
 
   if (collectionsErr) {
-    console.error('[public profile] collections failed:', collectionsErr.message);
-    throw error(500, 'Could not load collections');
+    console.error(`[public-profile] ERROR: collections query failed`, {
+      code: collectionsErr.code,
+      message: collectionsErr.message,
+      details: collectionsErr.details
+    });
+    throw error(500, `Collections query failed: ${collectionsErr.message}`);
   }
 
+  console.log(`[public-profile] collections loaded: ${(collections ?? []).length}`);
+
   // ── 3. Load public records with junction memberships ─────────
+  console.log(`[public-profile] querying records for user: ${user.id}`);
   const { data: records, error: recordsErr } = await supabase
     .from('records')
     .select(`
@@ -105,11 +131,18 @@ export const load = async ({ params, locals: { supabase } }) => {
     .order('created_at', { ascending: false });
 
   if (recordsErr) {
-    console.error('[public profile] records failed:', recordsErr.message);
-    throw error(500, 'Could not load records');
+    console.error(`[public-profile] ERROR: records query failed`, {
+      code: recordsErr.code,
+      message: recordsErr.message,
+      details: recordsErr.details
+    });
+    throw error(500, `Records query failed: ${recordsErr.message}`);
   }
 
+  console.log(`[public-profile] records loaded: ${(records ?? []).length}`);
+
   // ── 4. Build collection summaries with cover thumbnails ───────
+  console.log(`[public-profile] building collection summaries`);
   const collectionSummaries = (collections ?? []).map((coll) => {
     const collRecords = (records ?? []).filter((r) =>
       r.record_collections?.some((rc) => rc.collection_id === coll.id)
@@ -127,8 +160,10 @@ export const load = async ({ params, locals: { supabase } }) => {
       covers
     };
   });
+  console.log(`[public-profile] collection summaries built: ${collectionSummaries.length}`);
 
   // ── 5. Sanitize — respect user's privacy preferences ─────────
+  console.log(`[public-profile] sanitizing records (privacy filtering)`);
   const recordsForDisplay = (records ?? []).map((r) => ({
     id: r.id,
     artist: r.artist,
@@ -141,7 +176,9 @@ export const load = async ({ params, locals: { supabase } }) => {
     value_override: user.show_values_publicly ? r.value_override : null,
     purchase_price: user.show_values_publicly ? r.purchase_price : null
   }));
+  console.log(`[public-profile] records sanitized: ${recordsForDisplay.length}`);
 
+  console.log(`[public-profile] building payload`);
   const payload = {
     user: {
       id: user.id,
@@ -167,6 +204,8 @@ export const load = async ({ params, locals: { supabase } }) => {
     }
   };
 
+  console.log(`[public-profile] caching profile for ${username}`);
   setCachedProfile(username, payload);
+  console.log(`[public-profile] load complete for ${username}`);
   return payload;
 };
