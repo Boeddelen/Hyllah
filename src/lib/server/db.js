@@ -327,6 +327,23 @@ export async function loadRecordCollections(supabase, userId, recordId) {
 }
 
 /**
+ * Load ALL record-collection junction rows for a user.
+ * Returns an array of { record_id, collection_id } objects.
+ * Used by the "All records" view to show which collections each record belongs to.
+ */
+export async function loadAllRecordCollections(supabase, userId) {
+  const { data, error } = await supabase
+    .from('record_collections')
+    .select('record_id, collection_id, records!inner(user_id)')
+    .eq('records.user_id', userId);
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    record_id: row.record_id,
+    collection_id: row.collection_id
+  }));
+}
+
+/**
  * Replace a record's collection memberships with the given set.
  * The record's primary `records.collection_id` is also kept in sync — it
  * always points to one of the collections in the set (preferring the

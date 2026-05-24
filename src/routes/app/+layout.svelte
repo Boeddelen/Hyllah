@@ -35,6 +35,17 @@
       <div class="nav-section">
         <div class="nav-label">Collections</div>
 
+        <!-- All records entry -->
+        <a
+          href="/app/all"
+          class="nav-item"
+          class:active={isActive('/app/all')}
+          onclick={() => (sidebarOpen = false)}
+        >
+          <span class="nav-icon">◇</span>
+          <span class="nav-text">All records</span>
+        </a>
+
         {#each data.collections as collection (collection.id)}
           {@const count = data.counts[collection.id]?.active ?? 0}
           <a
