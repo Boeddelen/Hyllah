@@ -107,7 +107,7 @@ export const load = async ({ params, locals: { supabase } }) => {
 
   console.log(`[public-profile] collections loaded: ${(collections ?? []).length}`);
 
-  // ── 3. Load public records with junction memberships ─────────
+  // ── 3. Load public records (simplified — no nested join yet) ──
   console.log(`[public-profile] querying records for user: ${user.id}`);
   const { data: records, error: recordsErr } = await supabase
     .from('records')
@@ -122,8 +122,8 @@ export const load = async ({ params, locals: { supabase } }) => {
       value_override,
       purchase_price,
       discogs_id,
-      created_at,
-      record_collections ( collection_id )
+      collection_id,
+      created_at
     `)
     .eq('user_id', user.id)
     .eq('is_public_record', true)
@@ -144,9 +144,7 @@ export const load = async ({ params, locals: { supabase } }) => {
   // ── 4. Build collection summaries with cover thumbnails ───────
   console.log(`[public-profile] building collection summaries`);
   const collectionSummaries = (collections ?? []).map((coll) => {
-    const collRecords = (records ?? []).filter((r) =>
-      r.record_collections?.some((rc) => rc.collection_id === coll.id)
-    );
+    const collRecords = (records ?? []).filter((r) => r.collection_id === coll.id);
     const covers = collRecords
       .filter((r) => r.cover_url)
       .slice(0, 4)
