@@ -26,6 +26,10 @@
         We hit an unexpected error. The team has been notified. Try again in a moment,
         or head back home.
       </p>
+      <!-- TEMP: show error message for debugging — remove after diagnosis -->
+      {#if $page.error?.message}
+        <pre class="debug-error">{$page.error.message}</pre>
+      {/if}
     {:else}
       <h1>Couldn't <em>open</em> that.</h1>
       <p>{$page.error?.message ?? 'An unknown error occurred.'}</p>
@@ -107,6 +111,19 @@
     color: var(--ink-2);
     line-height: 1.55;
     margin-bottom: 50px;
+  }
+
+  .debug-error {
+    text-align: left;
+    font-size: 11px;
+    background: #111;
+    color: #f87171;
+    padding: 16px;
+    border-radius: 8px;
+    overflow: auto;
+    margin-bottom: 24px;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 
   .btn {
