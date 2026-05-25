@@ -5,7 +5,7 @@
   // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
   import { onMount, onDestroy } from 'svelte';
-  import { getTheme, setTheme } from '$lib/theme.js';
+  import { THEMES, getThemeId, setThemeId, getMode, setMode } from '$lib/theme.js';
   import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from '$lib/currency.js';
   import AvatarUpload from '$lib/components/AvatarUpload.svelte';
 
@@ -73,15 +73,21 @@
   onDestroy(() => clearTimeout(usernameDebounce));
 
   // Theme state — initialized after mount so SSR doesn't see the wrong value
-  let currentTheme = $state('dark');
+  let currentTheme = $state('listening-room');
+  let currentMode = $state('dark');
   onMount(() => {
-    currentTheme = getTheme();
+    currentTheme = getThemeId();
+    currentMode = getMode();
     // Trigger initial check so the indicator is right on first load
     if (username) onUsernameInput();
   });
-  function switchTheme(t) {
-    currentTheme = t;
-    setTheme(t);
+  function switchTheme(themeId) {
+    currentTheme = themeId;
+    setThemeId(themeId);
+  }
+  function switchMode(mode) {
+    currentMode = mode;
+    setMode(mode);
   }
 
   // ── Avatar actions ─────────────────────────────────────────
@@ -430,27 +436,50 @@
     <p class="lede">How records look in your collection.</p>
 
     <div class="card">
-      <!-- Theme toggle: local-only setting, no form submission needed -->
+      <!-- Theme picker -->
       <div class="pref-row pref-row-bordered">
         <div class="pref-label">Theme</div>
+        <div class="theme-grid">
+          {#each THEMES as theme (theme.id)}
+            <button
+              type="button"
+              class="theme-card"
+              class:active={currentTheme === theme.id}
+              onclick={() => switchTheme(theme.id)}
+            >
+              <div class="theme-swatches">
+                {#each theme.swatches[currentMode] as color}
+                  <div class="theme-swatch" style="background: {color};"></div>
+                {/each}
+              </div>
+              <div class="theme-card-name">{theme.name}</div>
+              <div class="theme-card-genre">{theme.genre}</div>
+            </button>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Mode toggle (dark / light) -->
+      <div class="pref-row pref-row-bordered">
+        <div class="pref-label">Mode</div>
         <div class="pref-options">
           <button
             type="button"
             class="radio-pill"
-            class:checked={currentTheme === 'dark'}
-            onclick={() => switchTheme('dark')}
+            class:checked={currentMode === 'dark'}
+            onclick={() => switchMode('dark')}
           >
-            <span class="radio-text">Late night</span>
-            <span class="radio-hint">Dark mode — the original.</span>
+            <span class="radio-text">Dark</span>
+            <span class="radio-hint">The default — easy on the eyes.</span>
           </button>
           <button
             type="button"
             class="radio-pill"
-            class:checked={currentTheme === 'light'}
-            onclick={() => switchTheme('light')}
+            class:checked={currentMode === 'light'}
+            onclick={() => switchMode('light')}
           >
-            <span class="radio-text">Daylight</span>
-            <span class="radio-hint">Light mode — warm paper.</span>
+            <span class="radio-text">Light</span>
+            <span class="radio-hint">For daytime browsing.</span>
           </button>
         </div>
       </div>
@@ -843,11 +872,63 @@
   }
   .pref-label {
     font-family: var(--ff-mono);
-    font-size: 10px;
-    letter-spacing: 0.2em;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--ink-3);
     margin-bottom: 12px;
+  }
+
+  /* ── Theme picker grid ──────────────────────────── */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .theme-card {
+    padding: 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: border-color var(--t), background var(--t);
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    width: 100%;
+  }
+  .theme-card:hover { border-color: var(--ink-3); }
+  .theme-card.active {
+    border-color: var(--accent);
+    background: var(--accent-glow);
+  }
+  .theme-swatches {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .theme-swatch {
+    flex: 1;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid rgba(128, 128, 128, 0.15);
+  }
+  .theme-card-name {
+    font-family: var(--ff-display);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .theme-card-genre {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  @media (max-width: 480px) {
+    .theme-grid { grid-template-columns: 1fr; }
   }
   .pref-options {
     display: flex;
@@ -872,7 +953,7 @@
   .radio-pill:hover { border-color: var(--ink-3); }
   .radio-pill.checked {
     border-color: var(--accent);
-    background: rgba(212, 163, 86, 0.07);
+    background: var(--accent-glow);
   }
   .radio-pill input[type='radio'] {
     margin: 0;
