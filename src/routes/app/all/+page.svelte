@@ -1,11 +1,18 @@
 <script>
   import { goto, invalidateAll } from '$app/navigation';
-  import { FORMATS, CONDITIONS, shortCondition, CONDITION_TO_DISCOGS_KEY } from '$lib/formats.js';
+  import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats.js';
   import { formatCurrency } from '$lib/currency.js';
   import { currentValueOf, valueOf, valueSourceLabel } from '$lib/valuation.js';
   import FilterBar from '$lib/components/FilterBar.svelte';
   import RecordModal from '$lib/components/RecordModal.svelte';
   import UndoToast from '$lib/components/UndoToast.svelte';
+
+  const CONDITION_TO_DISCOGS_KEY = {
+    MINT: 'Mint (M)', NEAR_MINT: 'Near Mint (NM or M-)',
+    VG_PLUS: 'Very Good Plus (VG+)', VG: 'Very Good (VG)',
+    GOOD_PLUS: 'Good Plus (G+)', GOOD: 'Good (G)',
+    FAIR: 'Fair (F)', POOR: 'Poor (P)'
+  };
 
   let { data } = $props();
 
