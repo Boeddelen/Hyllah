@@ -5,7 +5,7 @@
   // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
   import { onMount, onDestroy } from 'svelte';
-  import { THEMES, getThemeId, setThemeId, getMode, setMode } from '$lib/theme.js';
+  import { THEMES, getThemeId, setThemeId, getMode, setMode, getA11ySettings, setA11y } from '$lib/theme.js';
   import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from '$lib/currency.js';
   import AvatarUpload from '$lib/components/AvatarUpload.svelte';
 
@@ -75,9 +75,12 @@
   // Theme state — initialized after mount so SSR doesn't see the wrong value
   let currentTheme = $state('listening-room');
   let currentMode = $state('dark');
+  let a11y = $state({ reducedMotion: false, highContrast: false, largeText: false, colorBlind: false });
+
   onMount(() => {
     currentTheme = getThemeId();
     currentMode = getMode();
+    a11y = getA11ySettings();
     // Trigger initial check so the indicator is right on first load
     if (username) onUsernameInput();
   });
@@ -542,6 +545,117 @@
           </button>
         </div>
       </form>
+    </div>
+  </section>
+
+  <!-- ── Accessibility ─────────────────────────────────── -->
+  <section class="section">
+    <h2>Accessibility</h2>
+    <p class="lede">
+      Adjust the app to suit your needs. These settings are local — they apply
+      on this device only and take effect immediately.
+    </p>
+
+    <div class="card">
+      <!-- Reduced motion -->
+      <div class="a11y-row">
+        <div class="a11y-row-text">
+          <div class="a11y-row-label">Reduced motion</div>
+          <div class="a11y-row-hint">
+            Disables card flip animations and hover transitions. Also respects
+            your operating system's "Reduce motion" preference automatically.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:on={a11y.reducedMotion}
+          aria-checked={a11y.reducedMotion}
+          role="switch"
+          aria-label="Reduced motion"
+          onclick={() => {
+            a11y.reducedMotion = !a11y.reducedMotion;
+            setA11y('reducedMotion', a11y.reducedMotion);
+          }}
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- High contrast -->
+      <div class="a11y-row">
+        <div class="a11y-row-text">
+          <div class="a11y-row-label">High contrast</div>
+          <div class="a11y-row-hint">
+            Increases contrast between text, borders, and backgrounds across
+            all themes. Useful for low-vision or bright-environment use.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:on={a11y.highContrast}
+          aria-checked={a11y.highContrast}
+          role="switch"
+          aria-label="High contrast"
+          onclick={() => {
+            a11y.highContrast = !a11y.highContrast;
+            setA11y('highContrast', a11y.highContrast);
+          }}
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Large text -->
+      <div class="a11y-row">
+        <div class="a11y-row-text">
+          <div class="a11y-row-label">Large text</div>
+          <div class="a11y-row-hint">
+            Increases all text sizes by 25%. Helps if the default text is
+            difficult to read.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:on={a11y.largeText}
+          aria-checked={a11y.largeText}
+          role="switch"
+          aria-label="Large text"
+          onclick={() => {
+            a11y.largeText = !a11y.largeText;
+            setA11y('largeText', a11y.largeText);
+          }}
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <!-- Color blind friendly -->
+      <div class="a11y-row">
+        <div class="a11y-row-text">
+          <div class="a11y-row-label">Color blind friendly</div>
+          <div class="a11y-row-hint">
+            Adds text labels and underlines wherever color alone is used to
+            convey meaning — like public/private status and condition grades.
+          </div>
+        </div>
+        <button
+          type="button"
+          class="toggle-btn"
+          class:on={a11y.colorBlind}
+          aria-checked={a11y.colorBlind}
+          role="switch"
+          aria-label="Color blind friendly"
+          onclick={() => {
+            a11y.colorBlind = !a11y.colorBlind;
+            setA11y('colorBlind', a11y.colorBlind);
+          }}
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
     </div>
   </section>
 
@@ -1103,6 +1217,64 @@
     font-style: italic;
     font-size: 12px;
     color: var(--ink-3);
+  }
+
+  /* ── Accessibility section ──────────────────────── */
+  .a11y-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--groove);
+  }
+  .a11y-row:last-child { border-bottom: none; }
+  .a11y-row-text { flex: 1; min-width: 0; }
+  .a11y-row-label {
+    font-family: var(--ff-display);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .a11y-row-hint {
+    font-family: var(--ff-body);
+    font-size: 13px;
+    color: var(--ink-3);
+    line-height: 1.5;
+  }
+
+  /* Toggle switch */
+  .toggle-btn {
+    flex-shrink: 0;
+    width: 44px;
+    height: 24px;
+    border-radius: 99px;
+    background: var(--bg-3);
+    border: 1.5px solid var(--groove);
+    cursor: pointer;
+    position: relative;
+    transition: background var(--t), border-color var(--t);
+    padding: 0;
+  }
+  .toggle-btn.on {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    transition: transform var(--t), background var(--t);
+    display: block;
+  }
+  .toggle-btn.on .toggle-knob {
+    transform: translateX(20px);
+    background: var(--bg);
   }
 
   /* ── Your data (export + delete) ─────────────── */

@@ -115,3 +115,70 @@ export function initTheme() {
     }
   } catch { /* noop */ }
 }
+
+// ── Accessibility ─────────────────────────────────────────────────────
+
+const A11Y_KEYS = {
+  reducedMotion:  'rv-a11y-reduced-motion',
+  highContrast:   'rv-a11y-high-contrast',
+  largeText:      'rv-a11y-large-text',
+  colorBlind:     'rv-a11y-colorblind'
+};
+
+const A11Y_ATTRS = {
+  reducedMotion:  'data-reduced-motion',
+  highContrast:   'data-high-contrast',
+  largeText:      'data-large-text',
+  colorBlind:     'data-colorblind'
+};
+
+/**
+ * Get current accessibility settings.
+ * @returns {{ reducedMotion: boolean, highContrast: boolean, largeText: boolean, colorBlind: boolean }}
+ */
+export function getA11ySettings() {
+  if (typeof document === 'undefined') {
+    return { reducedMotion: false, highContrast: false, largeText: false, colorBlind: false };
+  }
+  const el = document.documentElement;
+  return {
+    reducedMotion: el.hasAttribute(A11Y_ATTRS.reducedMotion),
+    highContrast:  el.hasAttribute(A11Y_ATTRS.highContrast),
+    largeText:     el.hasAttribute(A11Y_ATTRS.largeText),
+    colorBlind:    el.hasAttribute(A11Y_ATTRS.colorBlind)
+  };
+}
+
+/**
+ * Set a single accessibility option.
+ * @param {'reducedMotion'|'highContrast'|'largeText'|'colorBlind'} key
+ * @param {boolean} enabled
+ */
+export function setA11y(key, enabled) {
+  if (typeof document === 'undefined') return;
+  const el = document.documentElement;
+  const attr = A11Y_ATTRS[key];
+  const storageKey = A11Y_KEYS[key];
+  if (!attr) return;
+
+  if (enabled) {
+    el.setAttribute(attr, '');
+    try { localStorage.setItem(storageKey, '1'); } catch { /* noop */ }
+  } else {
+    el.removeAttribute(attr);
+    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+  }
+}
+
+/** Initialize accessibility settings from localStorage. Called on app mount. */
+export function initA11y() {
+  if (typeof document === 'undefined') return;
+  const el = document.documentElement;
+  for (const [key, storageKey] of Object.entries(A11Y_KEYS)) {
+    try {
+      if (localStorage.getItem(storageKey) === '1') {
+        el.setAttribute(A11Y_ATTRS[key], '');
+      }
+    } catch { /* noop */ }
+  }
+}

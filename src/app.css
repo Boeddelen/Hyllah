@@ -326,3 +326,165 @@ main {
   position: relative;
   z-index: 2;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY OVERRIDES
+   
+   Applied via data-* attributes on <html>, like the theme system.
+   All settings are localStorage-only — instant, no server roundtrip.
+   
+   Usage:
+     html[data-reduced-motion]   — no animations or transitions
+     html[data-high-contrast]    — boosted contrast ratios
+     html[data-large-text]       — 125% font scale
+     html[data-colorblind]       — no color-only meaning
+   
+   OS preference is respected automatically for reduced-motion.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+/* Covers both manual toggle and OS prefers-reduced-motion */
+
+html[data-reduced-motion] *,
+html[data-reduced-motion] *::before,
+html[data-reduced-motion] *::after,
+@media (prefers-reduced-motion: reduce) {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Card flip: replace 3D rotation with instant opacity crossfade */
+html[data-reduced-motion] .card-face {
+  transition: opacity 0.15s ease !important;
+}
+html[data-reduced-motion] .card-front { opacity: 1; }
+html[data-reduced-motion] .card-back  { opacity: 0; transform: rotateY(0deg) !important; }
+html[data-reduced-motion] .record-card.flipped .card-front { opacity: 0; transform: rotateY(0deg) !important; }
+html[data-reduced-motion] .record-card.flipped .card-back  { opacity: 1; transform: rotateY(0deg) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card-face { transition: opacity 0.15s ease !important; }
+  .card-front { opacity: 1; }
+  .card-back  { opacity: 0; transform: rotateY(0deg) !important; }
+  .record-card.flipped .card-front { opacity: 0; transform: rotateY(0deg) !important; }
+  .record-card.flipped .card-back  { opacity: 1; transform: rotateY(0deg) !important; }
+}
+
+
+/* ── High contrast ──────────────────────────────────────────────────── */
+/* Boosts all contrast ratios. Works on top of any theme. */
+
+html[data-high-contrast] {
+  --groove: color-mix(in srgb, var(--ink) 45%, var(--bg));
+  --ink-2: color-mix(in srgb, var(--ink) 88%, var(--bg));
+  --ink-3: color-mix(in srgb, var(--ink) 70%, var(--bg));
+}
+
+html[data-high-contrast] input,
+html[data-high-contrast] textarea,
+html[data-high-contrast] select {
+  border-width: 2px;
+}
+
+html[data-high-contrast] .card-face,
+html[data-high-contrast] [class*="card"] {
+  border-width: 2px !important;
+}
+
+html[data-high-contrast] :focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 3px !important;
+}
+
+/* Force full opacity on muted text */
+html[data-high-contrast] [class*="meta"],
+html[data-high-contrast] [class*="hint"],
+html[data-high-contrast] [class*="ink-3"] {
+  opacity: 1 !important;
+}
+
+
+/* ── Large text ─────────────────────────────────────────────────────── */
+/* Scales the root font size up 25%. All rem/em units scale with it.
+   Fixed-px values are individually bumped. */
+
+html[data-large-text] {
+  font-size: 18.75px; /* 15px × 1.25 */
+}
+
+html[data-large-text] body {
+  font-size: 18.75px;
+}
+
+/* Bump fixed-px text specifically used in components */
+html[data-large-text] .card-artist,
+html[data-large-text] .card-meta,
+html[data-large-text] [class*="eyebrow"],
+html[data-large-text] [class*="label"],
+html[data-large-text] [class*="mono"] {
+  font-size: 13.75px !important; /* was 11px */
+}
+
+html[data-large-text] .card-title,
+html[data-large-text] .card-back-title {
+  font-size: 20px !important; /* was 16px */
+}
+
+html[data-large-text] .detail-label {
+  font-size: 12.5px !important; /* was 10px */
+}
+
+html[data-large-text] .back-btn {
+  font-size: 12.5px !important; /* was 10px */
+  padding: 13px 4px !important;
+}
+
+html[data-large-text] .record-card {
+  height: 460px !important; /* was ~380-420px */
+}
+
+
+/* ── Color blind friendly ───────────────────────────────────────────── */
+/* Adds text/pattern indicators wherever color alone conveys meaning.
+   Works on top of any theme. */
+
+/* Public/private status: add text prefix */
+html[data-colorblind] .privacy-btn::before {
+  content: '● ';
+  font-size: 10px;
+}
+html[data-colorblind] .privacy-btn.private::before {
+  content: '○ ';
+}
+
+/* Condition pills: add a border pattern for non-color distinction */
+html[data-colorblind] .condition-pill {
+  border: 1.5px solid var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Value source: always show the source label */
+html[data-colorblind] .value-source {
+  display: inline !important;
+  opacity: 1 !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+}
+
+/* Accent text: add underline so it's not color-only */
+html[data-colorblind] .card-artist,
+html[data-colorblind] .card-back-artist {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Focus indicators: stronger */
+html[data-colorblind] :focus-visible {
+  outline: 3px solid var(--accent) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px var(--accent-glow) !important;
+}

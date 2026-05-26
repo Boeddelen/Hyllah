@@ -54,6 +54,19 @@
             localStorage.setItem('rv-mode', oldTheme === 'light' ? 'light' : 'dark');
             localStorage.removeItem('rv-theme');
           }
+
+          // Accessibility settings
+          var a11yKeys = {
+            'rv-a11y-reduced-motion': 'data-reduced-motion',
+            'rv-a11y-high-contrast':  'data-high-contrast',
+            'rv-a11y-large-text':     'data-large-text',
+            'rv-a11y-colorblind':     'data-colorblind'
+          };
+          for (var k in a11yKeys) {
+            if (localStorage.getItem(k) === '1') {
+              el.setAttribute(a11yKeys[k], '');
+            }
+          }
         } catch (e) { /* SSR or disabled storage */ }
       })();
     </script>
