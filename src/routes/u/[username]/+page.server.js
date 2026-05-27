@@ -49,7 +49,9 @@ export const load = async ({ params, locals: { supabase } }) => {
       avatar_url,
       display_currency,
       show_values_publicly,
-      show_discogs_links_publicly
+      show_discogs_links_publicly,
+      public_theme,
+      public_mode
     `)
     .ilike('username', username)
     .eq('is_public', true)
@@ -140,7 +142,9 @@ export const load = async ({ params, locals: { supabase } }) => {
       avatar_url: user.avatar_url,
       display_currency: user.display_currency,
       show_values_publicly: user.show_values_publicly,
-      show_discogs_links_publicly: user.show_discogs_links_publicly
+      show_discogs_links_publicly: user.show_discogs_links_publicly,
+      public_theme: user.public_theme ?? 'listening-room',
+      public_mode: user.public_mode ?? 'dark'
     },
     collections: collectionSummaries,
     records: recordsForDisplay,

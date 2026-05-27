@@ -1,9 +1,31 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { formatCurrency } from '$lib/currency.js';
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
   let { data } = $props();
   let { user, collections, records, stats } = $derived(data);
+
+  // Apply the profile owner's chosen public theme when this page mounts.
+  // Capture the visitor's own theme/mode first so we can restore it on leave.
+  let prevTheme = null;
+  let prevMode  = null;
+
+  onMount(() => {
+    const el = document.documentElement;
+    prevTheme = el.getAttribute('data-theme');
+    prevMode  = el.getAttribute('data-mode');
+    el.setAttribute('data-theme', user.public_theme ?? 'listening-room');
+    el.setAttribute('data-mode',  user.public_mode  ?? 'dark');
+  });
+
+  onDestroy(() => {
+    const el = document.documentElement;
+    if (prevTheme) el.setAttribute('data-theme', prevTheme);
+    else el.removeAttribute('data-theme');
+    if (prevMode) el.setAttribute('data-mode', prevMode);
+    else el.removeAttribute('data-mode');
+  });
 
   function toDisplay(eur, displayCurrency, rates) {
     if (!eur || !rates) return eur;

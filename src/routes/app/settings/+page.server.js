@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, fail } from '@sveltejs/kit';
 import { getRequestToken } from '$lib/server/discogs.js';
 import { PUBLIC_APP_URL } from '$env/static/public';
 import { SUPPORTED_CURRENCIES } from '$lib/currency.js';
@@ -10,7 +10,8 @@ export const load = async ({ url }) => {
     discogsDetail: url.searchParams.get('detail'),
     prefsStatus: url.searchParams.get('prefs'),
     profileStatus: url.searchParams.get('profile'),
-    profileError: url.searchParams.get('profile_err')
+    profileError: url.searchParams.get('profile_err'),
+    pubThemeStatus: url.searchParams.get('pubtheme')
   };
 };
 
@@ -253,5 +254,33 @@ export const actions = {
       .eq('id', user.id);
 
     if (error) console.error('updateAvatarUrl failed:', error);
+  },
+
+  /** Update the theme shown on the user's public profile page. */
+  updatePublicTheme: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const publicTheme = form.get('public_theme')?.toString() ?? 'listening-room';
+    const publicMode  = form.get('public_mode')?.toString()  ?? 'dark';
+
+    const VALID_THEMES = ['listening-room', 'neon-abyss', 'black-frost', 'concrete'];
+    const VALID_MODES  = ['dark', 'light'];
+
+    if (!VALID_THEMES.includes(publicTheme) || !VALID_MODES.includes(publicMode)) {
+      return fail(400, { action: 'updatePublicTheme', error: 'Invalid theme or mode.' });
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update({ public_theme: publicTheme, public_mode: publicMode })
+      .eq('id', user.id);
+
+    if (error) {
+      console.error('updatePublicTheme failed:', error);
+      return fail(500, { action: 'updatePublicTheme', error: 'Could not save public theme.' });
+    }
+    throw redirect(303, '/app/settings?pubtheme=saved');
   }
 };

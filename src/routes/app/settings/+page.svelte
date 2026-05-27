@@ -31,6 +31,11 @@
   let showValuesPublicly = $state(data.profile?.show_values_publicly ?? false);
   let savingProfile = $state(false);
 
+  // ── Public profile theme state ─────────────────────────
+  let publicTheme = $state(data.profile?.public_theme ?? 'listening-room');
+  let publicMode  = $state(data.profile?.public_mode  ?? 'dark');
+  let savingPublicTheme = $state(false);
+
   // Username availability check (debounced)
   let usernameStatus = $state('idle');   // 'idle' | 'checking' | 'available' | 'taken' | 'reserved' | 'format'
   let usernameDebounce;
@@ -132,6 +137,9 @@
     }
     if (data.prefsStatus === 'error') {
       return { tone: 'error', text: 'Could not save preferences.' };
+    }
+    if (data.pubThemeStatus === 'saved') {
+      return { tone: 'success', text: 'Public profile theme saved.' };
     }
     switch (data.discogsStatus) {
       case 'connected':
@@ -543,6 +551,98 @@
           <button type="submit" class="btn primary" disabled={savingPrefs}>
             {savingPrefs ? 'Saving…' : 'Save preferences'}
           </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ── Public profile theme ──────────────────────────── -->
+  <section class="section">
+    <h2>Public profile</h2>
+    <p class="lede">
+      Choose how your profile looks to visitors at
+      <span class="profile-url">retrovault.no/u/{data.profile?.username ?? 'your-username'}</span>.
+      This is independent from your own app theme.
+    </p>
+
+    {#if !data.profile?.username || !data.profile?.is_public}
+      <div class="info-banner">
+        You need a username and a public profile before this takes effect.
+        Set both in the Profile section above.
+      </div>
+    {/if}
+
+    <div class="card">
+      <form
+        method="POST"
+        action="?/updatePublicTheme"
+        onsubmit={() => { savingPublicTheme = true; }}
+      >
+        <input type="hidden" name="public_theme" value={publicTheme} />
+        <input type="hidden" name="public_mode" value={publicMode} />
+
+        <!-- Theme picker -->
+        <div class="pref-row pref-row-bordered">
+          <div class="pref-label">Profile theme</div>
+          <div class="theme-grid">
+            {#each THEMES as theme (theme.id)}
+              <button
+                type="button"
+                class="theme-card"
+                class:active={publicTheme === theme.id}
+                onclick={() => (publicTheme = theme.id)}
+              >
+                <div class="theme-swatches">
+                  {#each theme.swatches[publicMode] as color}
+                    <div class="theme-swatch" style="background: {color};"></div>
+                  {/each}
+                </div>
+                <div class="theme-card-name">{theme.name}</div>
+                <div class="theme-card-genre">{theme.genre}</div>
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Mode toggle -->
+        <div class="pref-row pref-row-bordered">
+          <div class="pref-label">Mode</div>
+          <div class="pref-options">
+            <button
+              type="button"
+              class="radio-pill"
+              class:checked={publicMode === 'dark'}
+              onclick={() => (publicMode = 'dark')}
+            >
+              <span class="radio-text">Dark</span>
+              <span class="radio-hint">The brooding choice.</span>
+            </button>
+            <button
+              type="button"
+              class="radio-pill"
+              class:checked={publicMode === 'light'}
+              onclick={() => (publicMode = 'light')}
+            >
+              <span class="radio-text">Light</span>
+              <span class="radio-hint">For the daylight crowd.</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pref-actions">
+          <button type="submit" class="btn primary" disabled={savingPublicTheme}>
+            {savingPublicTheme ? 'Saving…' : 'Save public theme'}
+          </button>
+          {#if data.profile?.username && data.profile?.is_public}
+            <a
+              href="/u/{data.profile.username}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn outline"
+            >
+              Preview profile ↗
+            </a>
+          {/if}
         </div>
       </form>
     </div>
@@ -1217,6 +1317,25 @@
     font-style: italic;
     font-size: 12px;
     color: var(--ink-3);
+  }
+
+  /* ── Public profile theme section ───────────────── */
+  .profile-url {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--accent);
+  }
+  .info-banner {
+    padding: 12px 16px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-bottom: 16px;
+    line-height: 1.5;
   }
 
   /* ── Accessibility section ──────────────────────── */
