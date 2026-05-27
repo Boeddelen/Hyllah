@@ -38,3 +38,18 @@ export const handle = async ({ event, resolve }) => {
     filterSerializedResponseHeaders: (name) => name === 'content-range' || name === 'x-supabase-api-version'
   });
 };
+
+
+/** @type {import('@sveltejs/kit').HandleServerError} */
+export function handleError({ error, event, status, message }) {
+  // Log full error + stack to Cloudflare worker logs
+  console.error(`[handleError] ${status} on ${event.url.pathname}`);
+  console.error('[handleError] message:', message);
+  console.error('[handleError] error:', error);
+  if (error?.stack) console.error('[handleError] stack:', error.stack);
+
+  // Return the message so +error.svelte can display it
+  return {
+    message: error?.message ?? message ?? 'Internal Error'
+  };
+}

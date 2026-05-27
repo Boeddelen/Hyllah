@@ -23,9 +23,9 @@
     {:else if $page.status >= 500}
       <h1>Something <em>skipped</em>.</h1>
       <p>
-        We hit an unexpected error. The team has been notified. Try again in a moment,
-        or head back home.
+        An unexpected error occurred. Head back home or try again in a moment.
       </p>
+      <pre class="error-detail">{$page.status}: {$page.error?.message ?? 'No message'}</pre>
     {:else}
       <h1>Couldn't <em>open</em> that.</h1>
       <p>{$page.error?.message ?? 'An unknown error occurred.'}</p>
@@ -96,6 +96,19 @@
     color: var(--ink-2);
     line-height: 1.55;
     margin-bottom: 50px;
+  }
+  .error-detail {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--danger);
+    background: var(--bg-2);
+    border: 1px solid var(--danger);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 40px;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
   .btn {
     display: inline-flex;
