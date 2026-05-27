@@ -4,7 +4,11 @@
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
   let { data } = $props();
-  let { user, collections, records, stats } = $derived(data);
+
+  const user        = $derived(data.user);
+  const collections = $derived(data.collections ?? []);
+  const records     = $derived(data.records ?? []);
+  const stats       = $derived(data.stats);
 
   // Apply the profile owner's chosen public theme when this page mounts.
   // Capture the visitor's own theme/mode first so we can restore it on leave.
