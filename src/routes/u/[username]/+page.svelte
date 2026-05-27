@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { browser } from '$app/environment';
   import { formatCurrency } from '$lib/currency.js';
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
@@ -12,10 +13,12 @@
 
   // Apply the profile owner's chosen public theme when this page mounts.
   // Capture the visitor's own theme/mode first so we can restore it on leave.
+  // Both guarded with `browser` because document doesn't exist during SSR.
   let prevTheme = null;
   let prevMode  = null;
 
   onMount(() => {
+    if (!browser) return;
     const el = document.documentElement;
     prevTheme = el.getAttribute('data-theme');
     prevMode  = el.getAttribute('data-mode');
@@ -24,6 +27,7 @@
   });
 
   onDestroy(() => {
+    if (!browser) return;
     const el = document.documentElement;
     if (prevTheme) el.setAttribute('data-theme', prevTheme);
     else el.removeAttribute('data-theme');
