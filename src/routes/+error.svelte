@@ -26,6 +26,10 @@
         We hit an unexpected error. The team has been notified. Try again in a moment,
         or head back home.
       </p>
+      <!-- DEBUG: remove before final production -->
+      <p style="font-size: 13px; font-family: monospace; color: var(--danger); word-break: break-all;">
+        {$page.error?.message ?? ''}
+      </p>
     {:else}
       <h1>Couldn't <em>open</em> that.</h1>
       <p>{$page.error?.message ?? 'An unknown error occurred.'}</p>

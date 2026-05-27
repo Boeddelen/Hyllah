@@ -36,8 +36,8 @@ async function buildPayload(username, user, supabase) {
     .order('name', { ascending: true });
 
   if (collectionsErr) {
-    console.error('[public-profile] collections query failed:', collectionsErr.message);
-    throw error(500, 'Could not load collections');
+    console.error('[public-profile] collections query failed — code:', collectionsErr.code, '| message:', collectionsErr.message);
+    throw error(500, `Could not load collections: ${collectionsErr.message}`);
   }
 
   // Load public records
@@ -50,8 +50,8 @@ async function buildPayload(username, user, supabase) {
     .order('created_at', { ascending: false });
 
   if (recordsErr) {
-    console.error('[public-profile] records query failed:', recordsErr.message);
-    throw error(500, 'Could not load records');
+    console.error('[public-profile] records query failed — code:', recordsErr.code, '| message:', recordsErr.message);
+    throw error(500, `Could not load records: ${recordsErr.message}`);
   }
 
   // Build collection summaries with cover thumbnails
@@ -124,6 +124,9 @@ export const load = async ({ params, locals: { supabase } }) => {
     .maybeSingle();
 
   if (userErr) {
+    // Log the full error so we can see exactly what's failing
+    console.error('[public-profile] user query error — code:', userErr.code, '| message:', userErr.message, '| details:', userErr.details, '| hint:', userErr.hint);
+
     // If the columns added in migration 014 don't exist yet, fall back
     // to a query without them rather than returning 500.
     const isMissingColumn =
@@ -151,8 +154,7 @@ export const load = async ({ params, locals: { supabase } }) => {
       return buildPayload(username, fallback, supabase);
     }
 
-    console.error('[public-profile] user query failed:', userErr.message);
-    throw error(500, 'Could not load profile');
+    throw error(500, `Could not load profile: ${userErr.message}`);
   }
 
   if (!user) throw error(404, 'Profile not found');
