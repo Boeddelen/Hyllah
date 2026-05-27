@@ -7,8 +7,10 @@ const config = {
   kit: {
     adapter: adapter({
       routes: {
-        include: ['/*'],
-        exclude: ['<all>']
+        include: ['/*']
+        // No exclude — all routes go through the worker for SSR.
+        // The '<all>' exclude that was here previously prevented any
+        // server-side load functions from running, including public profiles.
       }
     }),
     alias: {
