@@ -1,67 +1,57 @@
-// GET /u/[username] — public profile page
-//
-// Security model:
-//   - RLS policies (Migration 011) allow anon to read public data
-//   - Application layer enforces the same filters (defense in depth)
-//   - Financial data stripped unless show_values_publicly is enabled
-//   - Discogs IDs stripped unless show_discogs_links_publicly is enabled
-//
-// Caching: in-memory Map, 5-minute TTL, keyed by lowercase username.
-
 import { error } from '@sveltejs/kit';
 
-const profileCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+/** @type {import('./$types').PageServerLoad} */
+export const load = async ({ params, locals: { supabase } }) => {
+  const { username } = params;
 
-function getCachedProfile(username) {
-  const key = username.toLowerCase();
-  const cached = profileCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) return cached.data;
-  profileCache.delete(key);
-  return null;
-}
+  if (!username || typeof username !== 'string') throw error(404, 'Profile not found');
 
-function setCachedProfile(username, data) {
-  profileCache.set(username.toLowerCase(), { data, timestamp: Date.now() });
-}
+  // Step 1: bare minimum user query — no cache, no fancy columns
+  const { data: user, error: userErr } = await supabase
+    .from('users')
+    .select('id, username, display_name, bio, avatar_url, is_public, display_currency, show_values_publicly, show_discogs_links_publicly')
+    .ilike('username', username)
+    .maybeSingle();
 
-// ── Shared payload builder ────────────────────────────────────────────────
-// Extracted so both the normal and fallback code paths can reuse it.
-async function buildPayload(username, user, supabase) {
-  // Load collections
-  const { data: collections, error: collectionsErr } = await supabase
+  if (userErr) {
+    throw error(500, `User query failed [${userErr.code}]: ${userErr.message}`);
+  }
+  if (!user) throw error(404, 'Profile not found — user not in DB');
+  if (!user.is_public) throw error(404, 'Profile not found — not public');
+
+  // Step 2: collections
+  const { data: collections, error: collErr } = await supabase
     .from('collections')
     .select('id, name, icon')
     .eq('user_id', user.id)
     .order('name', { ascending: true });
 
-  if (collectionsErr) {
-    console.error('[public-profile] collections query failed — code:', collectionsErr.code, '| message:', collectionsErr.message);
-    throw error(500, `Could not load collections: ${collectionsErr.message}`);
+  if (collErr) {
+    throw error(500, `Collections query failed [${collErr.code}]: ${collErr.message}`);
   }
 
-  // Load public records
-  const { data: records, error: recordsErr } = await supabase
+  // Step 3: records — minimal columns only
+  const { data: records, error: recErr } = await supabase
     .from('records')
-    .select('id, artist, title, image_url, format, year, condition, value_override, purchase_price, discogs_id, collection_id, created_at')
+    .select('id, artist, title, image_url, format, year, condition, value_override, purchase_price, discogs_id, created_at')
     .eq('user_id', user.id)
     .eq('is_public_record', true)
     .eq('is_pending_delete', false)
     .order('created_at', { ascending: false });
 
-  if (recordsErr) {
-    console.error('[public-profile] records query failed — code:', recordsErr.code, '| message:', recordsErr.message);
-    throw error(500, `Could not load records: ${recordsErr.message}`);
+  if (recErr) {
+    throw error(500, `Records query failed [${recErr.code}]: ${recErr.message}`);
   }
 
-  // Build collection summaries with cover thumbnails
-  const collectionSummaries = (collections ?? []).map((coll) => {
-    const collRecords = (records ?? []).filter((r) => r.collection_id === coll.id);
-    const covers = collRecords.filter((r) => r.image_url).slice(0, 4).map((r) => r.image_url);
-    return { id: coll.id, name: coll.name, icon: coll.icon, count: collRecords.length, covers };
-  });
+  // Step 4: build payload
+  const collectionSummaries = (collections ?? []).map((coll) => ({
+    id: coll.id,
+    name: coll.name,
+    icon: coll.icon,
+    count: 0,
+    covers: []
+  }));
 
-  // Sanitize — respect user's privacy preferences
   const recordsForDisplay = (records ?? []).map((r) => ({
     id: r.id,
     artist: r.artist,
@@ -75,7 +65,7 @@ async function buildPayload(username, user, supabase) {
     purchase_price: user.show_values_publicly ? r.purchase_price : null
   }));
 
-  const payload = {
+  return {
     user: {
       id: user.id,
       username: user.username,
@@ -85,78 +75,15 @@ async function buildPayload(username, user, supabase) {
       display_currency: user.display_currency,
       show_values_publicly: user.show_values_publicly,
       show_discogs_links_publicly: user.show_discogs_links_publicly,
-      public_theme: user.public_theme ?? 'listening-room',
-      public_mode:  user.public_mode  ?? 'dark'
+      public_theme: 'listening-room',
+      public_mode: 'dark'
     },
     collections: collectionSummaries,
     records: recordsForDisplay,
     stats: {
       total_records: recordsForDisplay.length,
       total_collections: collectionSummaries.length,
-      total_value: user.show_values_publicly
-        ? recordsForDisplay.reduce((sum, r) => {
-            const v = Number(r.value_override);
-            return sum + (Number.isFinite(v) ? v : 0);
-          }, 0)
-        : null
+      total_value: null
     }
   };
-
-  setCachedProfile(username, payload);
-  return payload;
-}
-
-/** @type {import('./$types').PageServerLoad} */
-export const load = async ({ params, locals: { supabase } }) => {
-  const { username } = params;
-
-  if (!username || typeof username !== 'string') throw error(404, 'Profile not found');
-
-  const cached = getCachedProfile(username);
-  if (cached) return cached;
-
-  // ── Load user — with graceful fallback if migration 014 is pending ───────
-  const { data: user, error: userErr } = await supabase
-    .from('users')
-    .select('id, username, display_name, bio, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly, public_theme, public_mode')
-    .ilike('username', username)
-    .eq('is_public', true)
-    .maybeSingle();
-
-  if (userErr) {
-    // Log the full error so we can see exactly what's failing
-    console.error('[public-profile] user query error — code:', userErr.code, '| message:', userErr.message, '| details:', userErr.details, '| hint:', userErr.hint);
-
-    // If the columns added in migration 014 don't exist yet, fall back
-    // to a query without them rather than returning 500.
-    const isMissingColumn =
-      userErr.message?.includes('public_theme') ||
-      userErr.message?.includes('public_mode') ||
-      userErr.code === '42703'; // PostgreSQL: undefined_column
-
-    if (isMissingColumn) {
-      console.warn('[public-profile] migration 014 not yet applied — using fallback query');
-      const { data: fallback, error: fallbackErr } = await supabase
-        .from('users')
-        .select('id, username, display_name, bio, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly')
-        .ilike('username', username)
-        .eq('is_public', true)
-        .maybeSingle();
-
-      if (fallbackErr) {
-        console.error('[public-profile] fallback query failed:', fallbackErr.message);
-        throw error(500, 'Could not load profile');
-      }
-      if (!fallback) throw error(404, 'Profile not found');
-
-      fallback.public_theme = 'listening-room';
-      fallback.public_mode  = 'dark';
-      return buildPayload(username, fallback, supabase);
-    }
-
-    throw error(500, `Could not load profile: ${userErr.message}`);
-  }
-
-  if (!user) throw error(404, 'Profile not found');
-  return buildPayload(username, user, supabase);
 };
