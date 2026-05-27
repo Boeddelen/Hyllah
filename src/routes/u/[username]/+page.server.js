@@ -16,9 +16,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 function getCachedProfile(username) {
   const key = username.toLowerCase();
   const cached = profileCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return cached.data;
-  }
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) return cached.data;
   profileCache.delete(key);
   return null;
 }
@@ -27,43 +25,10 @@ function setCachedProfile(username, data) {
   profileCache.set(username.toLowerCase(), { data, timestamp: Date.now() });
 }
 
-/** @type {import('./$types').PageServerLoad} */
-export const load = async ({ params, locals: { supabase } }) => {
-  const { username } = params;
-
-  if (!username || typeof username !== 'string') {
-    throw error(404, 'Profile not found');
-  }
-
-  const cached = getCachedProfile(username);
-  if (cached) return cached;
-
-  // ── 1. Load public user profile ───────────────────────────────
-  const { data: user, error: userErr } = await supabase
-    .from('users')
-    .select(`
-      id,
-      username,
-      display_name,
-      bio,
-      avatar_url,
-      display_currency,
-      show_values_publicly,
-      show_discogs_links_publicly,
-      public_theme,
-      public_mode
-    `)
-    .ilike('username', username)
-    .eq('is_public', true)
-    .maybeSingle();
-
-  if (userErr) {
-    console.error('[public-profile] user query failed:', userErr.message);
-    throw error(500, 'Could not load profile');
-  }
-  if (!user) throw error(404, 'Profile not found');
-
-  // ── 2. Load collections ───────────────────────────────────────
+// ── Shared payload builder ────────────────────────────────────────────────
+// Extracted so both the normal and fallback code paths can reuse it.
+async function buildPayload(username, user, supabase) {
+  // Load collections
   const { data: collections, error: collectionsErr } = await supabase
     .from('collections')
     .select('id, name, icon')
@@ -75,23 +40,10 @@ export const load = async ({ params, locals: { supabase } }) => {
     throw error(500, 'Could not load collections');
   }
 
-  // ── 3. Load public records ────────────────────────────────────
+  // Load public records
   const { data: records, error: recordsErr } = await supabase
     .from('records')
-    .select(`
-      id,
-      artist,
-      title,
-      image_url,
-      format,
-      year,
-      condition,
-      value_override,
-      purchase_price,
-      discogs_id,
-      collection_id,
-      created_at
-    `)
+    .select('id, artist, title, image_url, format, year, condition, value_override, purchase_price, discogs_id, collection_id, created_at')
     .eq('user_id', user.id)
     .eq('is_public_record', true)
     .eq('is_pending_delete', false)
@@ -102,24 +54,14 @@ export const load = async ({ params, locals: { supabase } }) => {
     throw error(500, 'Could not load records');
   }
 
-  // ── 4. Build collection summaries with cover thumbnails ───────
+  // Build collection summaries with cover thumbnails
   const collectionSummaries = (collections ?? []).map((coll) => {
     const collRecords = (records ?? []).filter((r) => r.collection_id === coll.id);
-    const covers = collRecords
-      .filter((r) => r.image_url)
-      .slice(0, 4)
-      .map((r) => r.image_url);
-
-    return {
-      id: coll.id,
-      name: coll.name,
-      icon: coll.icon,
-      count: collRecords.length,
-      covers
-    };
+    const covers = collRecords.filter((r) => r.image_url).slice(0, 4).map((r) => r.image_url);
+    return { id: coll.id, name: coll.name, icon: coll.icon, count: collRecords.length, covers };
   });
 
-  // ── 5. Sanitize — respect user's privacy preferences ─────────
+  // Sanitize — respect user's privacy preferences
   const recordsForDisplay = (records ?? []).map((r) => ({
     id: r.id,
     artist: r.artist,
@@ -144,7 +86,7 @@ export const load = async ({ params, locals: { supabase } }) => {
       show_values_publicly: user.show_values_publicly,
       show_discogs_links_publicly: user.show_discogs_links_publicly,
       public_theme: user.public_theme ?? 'listening-room',
-      public_mode: user.public_mode ?? 'dark'
+      public_mode:  user.public_mode  ?? 'dark'
     },
     collections: collectionSummaries,
     records: recordsForDisplay,
@@ -162,4 +104,57 @@ export const load = async ({ params, locals: { supabase } }) => {
 
   setCachedProfile(username, payload);
   return payload;
+}
+
+/** @type {import('./$types').PageServerLoad} */
+export const load = async ({ params, locals: { supabase } }) => {
+  const { username } = params;
+
+  if (!username || typeof username !== 'string') throw error(404, 'Profile not found');
+
+  const cached = getCachedProfile(username);
+  if (cached) return cached;
+
+  // ── Load user — with graceful fallback if migration 014 is pending ───────
+  const { data: user, error: userErr } = await supabase
+    .from('users')
+    .select('id, username, display_name, bio, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly, public_theme, public_mode')
+    .ilike('username', username)
+    .eq('is_public', true)
+    .maybeSingle();
+
+  if (userErr) {
+    // If the columns added in migration 014 don't exist yet, fall back
+    // to a query without them rather than returning 500.
+    const isMissingColumn =
+      userErr.message?.includes('public_theme') ||
+      userErr.message?.includes('public_mode') ||
+      userErr.code === '42703'; // PostgreSQL: undefined_column
+
+    if (isMissingColumn) {
+      console.warn('[public-profile] migration 014 not yet applied — using fallback query');
+      const { data: fallback, error: fallbackErr } = await supabase
+        .from('users')
+        .select('id, username, display_name, bio, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly')
+        .ilike('username', username)
+        .eq('is_public', true)
+        .maybeSingle();
+
+      if (fallbackErr) {
+        console.error('[public-profile] fallback query failed:', fallbackErr.message);
+        throw error(500, 'Could not load profile');
+      }
+      if (!fallback) throw error(404, 'Profile not found');
+
+      fallback.public_theme = 'listening-room';
+      fallback.public_mode  = 'dark';
+      return buildPayload(username, fallback, supabase);
+    }
+
+    console.error('[public-profile] user query failed:', userErr.message);
+    throw error(500, 'Could not load profile');
+  }
+
+  if (!user) throw error(404, 'Profile not found');
+  return buildPayload(username, user, supabase);
 };
