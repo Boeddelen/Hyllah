@@ -3,7 +3,7 @@
   import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
-  let { stats } = $derived(data);
+  const stats = $derived(data.stats);
 
   // User currency preferences from app layout server load
   let displayCurrency = $derived(data.displayCurrency ?? 'EUR');

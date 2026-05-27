@@ -3,7 +3,9 @@
   import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
-  let { user, collection, records } = $derived(data);
+  const user       = $derived(data.user);
+  const collection = $derived(data.collection);
+  const records    = $derived(data.records ?? []);
 
   let search = $state('');
 

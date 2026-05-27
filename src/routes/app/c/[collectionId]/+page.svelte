@@ -9,7 +9,8 @@
   import FilterBar from '$lib/components/FilterBar.svelte';
 
   let { data } = $props();
-  let { collection, records } = $derived(data);
+  const collection = $derived(data.collection);
+  const records    = $derived(data.records ?? []);
 
   // The user's currency preferences arrive via the app layout server load
   let displayCurrency = $derived(data.displayCurrency ?? 'EUR');

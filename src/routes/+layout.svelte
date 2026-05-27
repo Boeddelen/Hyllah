@@ -5,7 +5,8 @@
   import '../app.css';
 
   let { data, children } = $props();
-  let { session, supabase } = $derived(data);
+  const session  = $derived(data.session);
+  const supabase = $derived(data.supabase);
 
   // Sync auth state across tabs — when user logs in/out elsewhere, re-fetch
   onMount(() => {

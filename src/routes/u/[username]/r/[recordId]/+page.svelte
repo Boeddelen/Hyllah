@@ -3,7 +3,9 @@
   import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
-  let { user, collection, record } = $derived(data);
+  const user       = $derived(data.user);
+  const collection = $derived(data.collection);
+  const record     = $derived(data.record);
 
   function fmtPrice(val, currency) {
     const n = Number(val);

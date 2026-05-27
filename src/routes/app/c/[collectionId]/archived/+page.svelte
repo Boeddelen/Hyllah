@@ -4,7 +4,8 @@
   import { FORMATS, shortCondition } from '$lib/formats';
 
   let { data } = $props();
-  let { collection, records } = $derived(data);
+  const collection = $derived(data.collection);
+  const records    = $derived(data.records ?? []);
 
   function fmtDate(iso) {
     if (!iso) return '';
