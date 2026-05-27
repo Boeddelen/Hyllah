@@ -95,11 +95,9 @@
                 {#each coll.covers as cover}
                   <img src={cover} alt="" />
                 {/each}
-                {#if coll.covers.length < 4}
-                  {#each Array(4 - coll.covers.length) as _}
-                    <div class="cover-placeholder">{FORMATS[records[0]?.format]?.icon ?? '—'}</div>
-                  {/each}
-                {/if}
+                {#each Array(Math.max(0, 4 - coll.covers.length)).fill(null) as _}
+                  <div class="cover-placeholder">{FORMATS[records[0]?.format]?.icon ?? '—'}</div>
+                {/each}
               </div>
               <div class="collection-info">
                 <div class="collection-icon">{coll.icon}</div>
