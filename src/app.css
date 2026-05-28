@@ -450,6 +450,17 @@ html[data-large-text] .detail-label {
   font-size: 12.5px !important; /* was 10px */
 }
 
+/* Accessibility section's own labels/hints must scale UP, not down.
+   The generic [class*="label"] rule above would otherwise shrink
+   .a11y-row-label from 15px to 13.75px, which looks misleading on
+   the very page that controls Large Text. */
+html[data-large-text] .a11y-row-label {
+  font-size: 18.75px !important; /* was 15px × 1.25 */
+}
+html[data-large-text] .a11y-row-hint {
+  font-size: 16.25px !important; /* was 13px × 1.25 */
+}
+
 html[data-large-text] .back-btn {
   font-size: 12.5px !important; /* was 10px */
   padding: 13px 4px !important;

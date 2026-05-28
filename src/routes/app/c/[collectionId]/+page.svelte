@@ -466,7 +466,6 @@
                 {/if}
               </div>
             </div>
-            <div class="flip-hint">tap to flip ↺</div>
           </div>
 
           <div class="card-face card-back">
@@ -849,15 +848,6 @@
     font-family: var(--ff-display); font-size: 14px;
     color: var(--ink); font-weight: 500;
   }
-  .flip-hint {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    text-align: center;
-    font-family: var(--ff-mono); font-size: 8px;
-    letter-spacing: 0.1em; color: var(--ink-3);
-    padding: 6px; opacity: 0;
-    transition: opacity var(--t);
-  }
-  .record-card:hover .flip-hint { opacity: 1; }
 
   /* ── Back ────────────────────────────────────────── */
   .card-back { display: flex; flex-direction: column; padding: 0; }
@@ -1065,6 +1055,5 @@
     .stats-row { gap: 20px; }
     .record-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
     .record-card { height: 340px; }
-    .flip-hint { opacity: 1; }
   }
 </style>
