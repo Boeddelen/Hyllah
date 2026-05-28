@@ -21,7 +21,7 @@ export const THEMES = [
     name: 'Listening room',
     genre: 'Warm · analog · vinyl den',
     fonts: 'Cormorant Garamond + DM Mono',
-    swatches: { dark: ['#1a1612', '#d4a356', '#f0ebe3'], light: ['#f5f0e8', '#9a7030', '#1a1714'] }
+    swatches: { dark: ['#161e18', '#cda84e', '#ede8dc'], light: ['#eef0e8', '#7d6420', '#1a221b'] }
   },
   {
     id: 'neon-abyss',
