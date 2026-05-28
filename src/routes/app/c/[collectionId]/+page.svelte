@@ -765,14 +765,14 @@
   /* ── Grid ────────────────────────────────────────── */
   .record-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
   }
 
   /* ── Flip card ───────────────────────────────────── */
   .record-card {
     position: relative;
-    height: 380px;
+    height: 420px;
     cursor: pointer;
     perspective: 1000px;
     outline: none;
@@ -1053,7 +1053,7 @@
     .page { padding: 24px 18px 60px; }
     .page-header { flex-direction: column; align-items: flex-start; }
     .stats-row { gap: 20px; }
-    .record-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
-    .record-card { height: 340px; }
+    .record-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+    .record-card { height: 380px; }
   }
 </style>
