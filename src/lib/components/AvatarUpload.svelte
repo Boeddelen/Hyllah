@@ -128,7 +128,7 @@
   }
   .toggle-option.active {
     border-color: var(--accent);
-    background: rgba(212, 163, 86, 0.06);
+    background: var(--accent-glow);
     color: var(--ink);
   }
 

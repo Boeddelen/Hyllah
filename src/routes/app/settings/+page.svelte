@@ -1390,10 +1390,15 @@
     background: var(--ink-3);
     transition: transform var(--t), background var(--t);
     display: block;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   }
   .toggle-btn.on .toggle-knob {
     transform: translateX(20px);
     background: var(--bg);
+  }
+  .toggle-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   /* ── Your data (export + delete) ─────────────── */

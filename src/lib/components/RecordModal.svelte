@@ -1135,7 +1135,7 @@
   .member-row:hover:not(.locked) { border-color: var(--ink-3); }
   .member-row.active {
     border-color: var(--accent);
-    background: rgba(212, 163, 86, 0.06);
+    background: var(--accent-glow);
   }
   .member-row.locked {
     cursor: not-allowed;
@@ -1288,7 +1288,7 @@
   .duplicate-warning {
     margin-top: 18px;
     padding: 16px 18px;
-    background: rgba(212, 163, 86, 0.08);
+    background: var(--accent-glow);
     border: 1px solid var(--accent);
     border-radius: var(--radius);
   }

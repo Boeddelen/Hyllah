@@ -367,7 +367,7 @@
   .picker-trigger.has-selection {
     color: var(--accent);
     border-color: var(--accent);
-    background: rgba(212, 163, 86, 0.06);
+    background: var(--accent-glow);
   }
   .caret {
     font-size: 8px;
@@ -422,7 +422,7 @@
   }
   .picker-option-btn.active {
     color: var(--accent);
-    background: rgba(212, 163, 86, 0.06);
+    background: var(--accent-glow);
   }
 
   .picker-option input[type="checkbox"] {

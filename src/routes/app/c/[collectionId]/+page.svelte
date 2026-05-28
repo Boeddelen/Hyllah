@@ -812,15 +812,15 @@
   .cover-badge {
     position: absolute; top: 8px; right: 8px;
     background: var(--overlay); backdrop-filter: blur(4px);
-    color: #f5e6d3;  /* always cream text — the overlay background is always dark */
-    font-family: var(--ff-mono); font-size: 8px;
+    color: rgba(255, 255, 255, 0.92);  /* readable on the always-dark overlay, theme-independent */
+    font-family: var(--ff-mono); font-size: 9px; font-weight: 500;
     letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 8px; border-radius: 99px;
   }
   .card-front-body { padding: 14px 16px 10px; }
   .card-artist {
-    font-family: var(--ff-mono); font-size: 9px;
-    letter-spacing: 0.18em; text-transform: uppercase;
+    font-family: var(--ff-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--accent); margin-bottom: 5px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -831,7 +831,7 @@
     -webkit-box-orient: vertical; overflow: hidden;
   }
   .card-meta {
-    font-family: var(--ff-mono); font-size: 9px;
+    font-family: var(--ff-mono); font-size: 11px;
     color: var(--ink-3); margin-bottom: 10px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -840,9 +840,9 @@
     padding-top: 8px; border-top: 1px solid var(--groove);
   }
   .condition-pill {
-    font-family: var(--ff-mono); font-size: 9px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--accent); background: rgba(212, 163, 86, 0.1);
+    font-family: var(--ff-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-glow);
     padding: 2px 8px; border-radius: 99px;
   }
   .card-value {
@@ -867,8 +867,8 @@
     background: var(--bg-3);
   }
   .card-back-artist {
-    font-family: var(--ff-mono); font-size: 9px;
-    letter-spacing: 0.18em; text-transform: uppercase;
+    font-family: var(--ff-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--accent); margin-bottom: 4px;
   }
   .card-back-title {
@@ -887,8 +887,8 @@
     align-items: baseline; gap: 8px; font-size: 12px;
   }
   .detail-label {
-    font-family: var(--ff-mono); font-size: 9px;
-    letter-spacing: 0.12em; text-transform: uppercase;
+    font-family: var(--ff-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--ink-3); flex-shrink: 0;
   }
   .value-source {
@@ -911,8 +911,8 @@
     justify-content: flex-end;
   }
   .tag {
-    font-family: var(--ff-mono); font-size: 8px;
-    letter-spacing: 0.1em; text-transform: uppercase;
+    font-family: var(--ff-mono); font-size: 9px;
+    letter-spacing: 0.08em; text-transform: uppercase;
     background: var(--bg-3); color: var(--ink-2);
     padding: 2px 6px; border-radius: 99px;
     border: 1px solid var(--groove);

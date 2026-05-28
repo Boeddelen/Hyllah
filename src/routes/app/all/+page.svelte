@@ -541,7 +541,7 @@
   .cover-badge {
     position: absolute; top: 8px; right: 8px;
     background: var(--overlay); backdrop-filter: blur(4px);
-    color: #f5e6d3;
+    color: rgba(255, 255, 255, 0.92);
     font-family: var(--ff-mono); font-size: 9px;
     letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 8px; border-radius: 99px;
