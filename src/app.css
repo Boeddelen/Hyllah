@@ -345,15 +345,28 @@ main {
 /* ── Reduced motion ─────────────────────────────────────────────────── */
 /* Covers both manual toggle and OS prefers-reduced-motion */
 
+/* Manual toggle */
 html[data-reduced-motion] *,
 html[data-reduced-motion] *::before,
-html[data-reduced-motion] *::after,
-@media (prefers-reduced-motion: reduce) {
+html[data-reduced-motion] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   transition-delay: 0ms !important;
   scroll-behavior: auto !important;
+}
+
+/* OS preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Card flip: replace 3D rotation with instant opacity crossfade */

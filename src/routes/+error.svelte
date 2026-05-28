@@ -1,5 +1,9 @@
 <script>
   import { page } from '$app/stores';
+
+  // Only show raw error detail when ?debug=1 is in the URL.
+  // Keeps production clean while allowing on-demand diagnosis.
+  const showDebug = $derived($page.url.searchParams.get('debug') === '1');
 </script>
 
 <svelte:head>
@@ -25,7 +29,9 @@
       <p>
         An unexpected error occurred. Head back home or try again in a moment.
       </p>
-      <pre class="error-detail">{$page.status}: {$page.error?.message ?? 'No message'}</pre>
+      {#if showDebug}
+        <pre class="error-detail">{$page.status}: {$page.error?.message ?? 'No message'}</pre>
+      {/if}
     {:else}
       <h1>Couldn't <em>open</em> that.</h1>
       <p>{$page.error?.message ?? 'An unknown error occurred.'}</p>

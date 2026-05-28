@@ -1,5 +1,6 @@
 <script>
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
+  import { beforeNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
   import { formatCurrency } from '$lib/currency.js';
   import { FORMATS, shortCondition } from '$lib/formats.js';
@@ -11,28 +12,39 @@
   const records     = $derived(data.records ?? []);
   const stats       = $derived(data.stats);
 
-  // Apply the profile owner's chosen public theme when this page mounts.
-  // Capture the visitor's own theme/mode first so we can restore it on leave.
-  // Both guarded with `browser` because document doesn't exist during SSR.
-  let prevTheme = null;
-  let prevMode  = null;
-
-  onMount(() => {
+  // Apply the profile owner's chosen public theme while viewing this page.
+  // On leaving, restore the visitor's OWN theme from localStorage (the source
+  // of truth) rather than whatever was in the DOM — this is reliable across
+  // profile-to-profile navigation and back-button cases.
+  function applyProfileTheme() {
     if (!browser) return;
     const el = document.documentElement;
-    prevTheme = el.getAttribute('data-theme');
-    prevMode  = el.getAttribute('data-mode');
     el.setAttribute('data-theme', user.public_theme ?? 'listening-room');
     el.setAttribute('data-mode',  user.public_mode  ?? 'dark');
-  });
+  }
 
-  onDestroy(() => {
+  function restoreVisitorTheme() {
     if (!browser) return;
     const el = document.documentElement;
-    if (prevTheme) el.setAttribute('data-theme', prevTheme);
-    else el.removeAttribute('data-theme');
-    if (prevMode) el.setAttribute('data-mode', prevMode);
-    else el.removeAttribute('data-mode');
+    let storedTheme = null;
+    let storedMode = null;
+    try {
+      storedTheme = localStorage.getItem('rv-theme-id');
+      storedMode = localStorage.getItem('rv-mode');
+    } catch { /* storage disabled */ }
+
+    // Restore the visitor's saved theme, or fall back to defaults
+    // (listening-room / dark) so the profile's theme never lingers.
+    el.setAttribute('data-theme', storedTheme || 'listening-room');
+    el.setAttribute('data-mode', storedMode === 'light' ? 'light' : 'dark');
+  }
+
+  onMount(() => {
+    applyProfileTheme();
+  });
+
+  beforeNavigate(() => {
+    restoreVisitorTheme();
   });
 
   function toDisplay(eur, displayCurrency, rates) {
