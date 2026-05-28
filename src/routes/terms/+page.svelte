@@ -95,7 +95,7 @@
       <p>
         Retro Vault is free to use. There are no paid tiers and no plans to introduce them.
         We may, in the future, add optional paid features — but core functionality (the
-        collection manager) will remain free forever.
+        collection manager) will remain free.
       </p>
       <p>
         Tips via PayPal are voluntary, non-refundable, and grant no special privileges, rights,

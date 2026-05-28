@@ -31,7 +31,7 @@
         <div class="brand-mark">
           Retro <em>Vault</em>
         </div>
-        <div class="brand-sub">Est. 2026 · A listening room</div>
+        <div class="brand-sub">Est. 2026 · A collection room</div>
       </div>
 
       <h1>A quiet place<br />for your <em>music collection</em>.</h1>
@@ -57,7 +57,7 @@
         <span class="dot">·</span>
         <span>Open source</span>
         <span class="dot">·</span>
-        <span>Free forever</span>
+        <span>Free</span>
       </div>
     </div>
   </div>
@@ -115,7 +115,7 @@
 
         <div class="feature">
           <div class="feature-num">06</div>
-          <h3>Free forever</h3>
+          <h3>Free</h3>
           <p>
             No tier, no upsell, no "premium". If you find it useful and want to chip in, there's a
             tip jar. If you don't, that's fine too.
