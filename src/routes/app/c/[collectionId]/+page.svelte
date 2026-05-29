@@ -455,7 +455,7 @@
             </div>
             <div class="card-front-body">
               <div class="card-artist">{record.artist}</div>
-              <div class="card-title">{record.title}</div>
+              <div class="card-title" title={record.title}>{record.title}</div>
               <div class="card-meta">
                 {[record.label, record.year].filter(Boolean).join(' · ') || ''}
               </div>
@@ -816,7 +816,7 @@
     letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 8px; border-radius: 99px;
   }
-  .card-front-body { padding: 14px 16px 10px; }
+  .card-front-body { padding: 12px 14px 10px; }
   .card-artist {
     font-family: var(--ff-mono); font-size: 11px; font-weight: 500;
     letter-spacing: 0.1em; text-transform: uppercase;
@@ -824,10 +824,11 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .card-title {
-    font-family: var(--ff-display); font-size: 18px;
-    line-height: 1.1; color: var(--ink); margin-bottom: 6px;
+    font-family: var(--ff-display); font-size: 16px;
+    line-height: 1.15; color: var(--ink); margin-bottom: 4px;
     display: -webkit-box; -webkit-line-clamp: 2;
     -webkit-box-orient: vertical; overflow: hidden;
+    word-break: break-word;
   }
   .card-meta {
     font-family: var(--ff-mono); font-size: 11px;

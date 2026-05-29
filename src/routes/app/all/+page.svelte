@@ -269,7 +269,7 @@
             </div>
             <div class="card-front-body">
               <div class="card-artist">{record.artist}</div>
-              <div class="card-title">{record.title}</div>
+              <div class="card-title" title={record.title}>{record.title}</div>
               <div class="card-meta">
                 {[record.label, record.year].filter(Boolean).join(' · ') || ''}
               </div>
@@ -557,6 +557,7 @@
     line-height: 1.15; color: var(--ink); margin-bottom: 4px;
     display: -webkit-box; -webkit-line-clamp: 2;
     -webkit-box-orient: vertical; overflow: hidden;
+    word-break: break-word;
   }
   .card-meta {
     font-family: var(--ff-mono); font-size: 11px;
