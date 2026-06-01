@@ -201,7 +201,7 @@
   <section class="section">
     <h2>Profile</h2>
     <p class="lede">
-      Your username unlocks the public profile (coming in the next phase). Display name
+      Your username unlocks the public profile. Display name
       and bio are what other people will see. Display currency converts all the prices
       you see across the app — your data stays stored in its original currency.
     </p>
@@ -330,7 +330,7 @@
               <span class="toggle-title">Make my profile public</span>
               <span class="toggle-hint">
                 {#if !username}Add a username first to enable this.
-                {:else}Anyone with the link can see your collections. The public page itself ships next phase.
+                {:else}Anyone with the link can see your collections.
                 {/if}
               </span>
             </span>
