@@ -1115,7 +1115,20 @@
   .theme-card:hover { border-color: var(--ink-3); }
   .theme-card.active {
     border-color: var(--accent);
+    border-width: 2px;
     background: var(--accent-glow);
+    position: relative;
+  }
+  .theme-card.active::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 11px;
+    font-family: var(--ff-mono);
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
   }
   .theme-swatches {
     display: flex;

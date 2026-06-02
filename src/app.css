@@ -175,6 +175,12 @@
   --t: 0.3s ease;
 }
 
+/* Black Frost is intentionally stark — grain on near-black looks like
+   screen noise rather than texture. Remove it for this theme only. */
+:root[data-theme='black-frost'] body::before {
+  opacity: 0;
+}
+
 :root[data-theme='black-frost'][data-mode='light'] {
   --bg: #f0efed;
   --bg-2: #e6e4e0;
@@ -182,7 +188,7 @@
   --surface: #ccc8c2;
   --ink: #1a1a1a;
   --ink-2: #4a4a4a;
-  --ink-3: #7a7a7a;
+  --ink-3: #5a5a5a;
   --accent: #3a3a3a;
   --accent-glow: rgba(58, 58, 58, 0.1);
   --groove: #cac6c0;
