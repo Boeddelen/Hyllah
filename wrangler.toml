@@ -1,10 +1,8 @@
-{
-  "name": "retrovault",
-  "compatibility_date": "2026-05-12",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": ".svelte-kit/cloudflare/_worker.js",
-  "assets": {
-    "binding": "ASSETS",
-    "directory": ".svelte-kit/cloudflare"
-  }
-}
+name = "retrovault"
+compatibility_date = "2026-05-12"
+compatibility_flags = ["nodejs_compat"]
+main = ".svelte-kit/cloudflare/_worker.js"
+
+[assets]
+binding = "ASSETS"
+directory = ".svelte-kit/cloudflare"
