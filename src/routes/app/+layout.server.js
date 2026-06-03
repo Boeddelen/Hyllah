@@ -1,17 +1,19 @@
 import { redirect } from '@sveltejs/kit';
 import { loadCollections, loadCollectionCounts, loadUserProfile } from '$lib/server/db';
 import { getCachedRates } from '$lib/server/rates.js';
+import { countPendingIncoming } from '$lib/server/friendships.js';
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async ({ locals: { safeGetSession, supabase } }) => {
   const { session, user } = await safeGetSession();
   if (!session || !user) throw redirect(303, '/login');
 
-  // Profile and collections in parallel.
-  const [profile, collections, counts] = await Promise.all([
+  // Profile, collections, counts, and pending friend requests in parallel.
+  const [profile, collections, counts, pendingRequestCount] = await Promise.all([
     loadUserProfile(supabase, user.id),
     loadCollections(supabase, user.id),
-    loadCollectionCounts(supabase, user.id)
+    loadCollectionCounts(supabase, user.id),
+    countPendingIncoming(supabase, user.id)
   ]);
 
   // Rates: only fetch if the user's display currency is non-EUR. Saves a
@@ -34,6 +36,7 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
     collections,
     counts,
     rates,
-    displayCurrency
+    displayCurrency,
+    pendingRequestCount
   };
 };

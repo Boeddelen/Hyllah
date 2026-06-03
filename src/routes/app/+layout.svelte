@@ -81,6 +81,17 @@
         >
           <span class="nav-text">Stats</span>
         </a>
+        <a
+          href="/app/friends"
+          class="nav-item"
+          class:active={isActive('/app/friends')}
+          onclick={() => (sidebarOpen = false)}
+        >
+          <span class="nav-text">Friends</span>
+          {#if (data.pendingRequestCount ?? 0) > 0}
+            <span class="nav-badge">{data.pendingRequestCount}</span>
+          {/if}
+        </a>
       </div>
 
       <div class="nav-section">
@@ -253,6 +264,21 @@
   .nav-item.active .nav-count {
     color: var(--accent);
     opacity: 0.7;
+  }
+
+  .nav-badge {
+    flex-shrink: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 99px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
   }
 
   .sidebar-footer {

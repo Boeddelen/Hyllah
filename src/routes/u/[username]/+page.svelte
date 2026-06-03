@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { beforeNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
+  import { enhance } from '$app/forms';
   import { formatCurrency } from '$lib/currency.js';
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
@@ -11,6 +12,30 @@
   const collections = $derived(data.collections ?? []);
   const records     = $derived(data.records ?? []);
   const stats       = $derived(data.stats);
+
+  // Viewer-specific social state (provided by the server load).
+  const viewer  = $derived(data.viewer ?? { isLoggedIn: false, isOwnProfile: false });
+  // Local mirror of friendship status so the button updates after an action
+  // without needing a full reload. Seeded from server, then patched optimistically.
+  let friendStatus = $state(data.friendshipStatus ?? 'none');
+  let sending = $state(false);
+
+  // Keep local status in sync if the server value changes (e.g. navigation).
+  $effect(() => {
+    friendStatus = data.friendshipStatus ?? 'none';
+  });
+
+  function handleSendRequest() {
+    sending = true;
+    return async ({ result, update }) => {
+      sending = false;
+      if (result.type === 'success') {
+        friendStatus = 'pending_sent';
+      }
+      // Re-run the load so server truth wins, but don't reset our optimistic UI.
+      await update({ reset: false });
+    };
+  }
 
   // Apply the profile owner's chosen public theme while viewing this page.
   // On leaving, restore the visitor's OWN theme from localStorage (the source
@@ -100,6 +125,27 @@
           </div>
         {/if}
       </div>
+
+      <!-- ── Social actions ─────────────────────────────────── -->
+      {#if !viewer.isOwnProfile}
+        <div class="social-actions">
+          {#if !viewer.isLoggedIn}
+            <a href="/login" class="connect-btn">Sign in to connect</a>
+          {:else if friendStatus === 'friends'}
+            <span class="friend-state">✓ Friends</span>
+          {:else if friendStatus === 'pending_sent'}
+            <span class="friend-state muted">Request sent</span>
+          {:else if friendStatus === 'pending_received'}
+            <a href="/app/friends" class="connect-btn">Respond to request</a>
+          {:else}
+            <form method="POST" action="?/sendFriendRequest" use:enhance={handleSendRequest}>
+              <button type="submit" class="connect-btn" disabled={sending}>
+                {sending ? 'Sending…' : 'Add friend'}
+              </button>
+            </form>
+          {/if}
+        </div>
+      {/if}
     </div>
   </header>
 
@@ -275,6 +321,47 @@
 
   .stat-value.accent {
     color: var(--accent);
+  }
+
+  /* ── Social actions ────────────────────────────────────── */
+  .social-actions {
+    margin-top: 28px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .connect-btn {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 11px 26px;
+    border-radius: var(--radius);
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity var(--t);
+    display: inline-block;
+  }
+  .connect-btn:hover:not(:disabled) { opacity: 0.88; }
+  .connect-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .friend-state {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--groove);
+    background: var(--accent-glow);
+    padding: 11px 26px;
+    border-radius: var(--radius);
+  }
+  .friend-state.muted {
+    color: var(--ink-3);
+    background: transparent;
   }
 
   /* ── Sections ──────────────────────────────────────────── */
