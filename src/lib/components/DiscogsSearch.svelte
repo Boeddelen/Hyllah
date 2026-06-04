@@ -41,7 +41,7 @@
   onDestroy(cleanup);
 
   async function runSearch(q) {
-    if (q.length < 3) {
+    if (q.length < 2) {
       clearResults();
       return;
     }
@@ -60,22 +60,53 @@
       // If a newer search has started, abandon these results
       if (mySeq !== searchSeq) return;
 
-      if (!res.ok) {
-        const body = await res.text();
-        if (res.status === 403 && body.includes('NOT_CONNECTED')) {
-          error = 'Discogs is not connected. Connect it in Settings.';
-        } else if (res.status === 401) {
-          error = 'Please sign in again.';
-        } else if (res.status === 429 || body.includes('429') || body.includes('too quickly')) {
-          error = 'Slow down — Discogs is rate-limiting us. Wait a few seconds and try again.';
-        } else {
-          error = `Search failed (${res.status})`;
+      // The endpoint now returns 200 with a structured body in all cases
+      // (mobile browsers often hide non-2xx bodies from JS). Parse it and
+      // branch on `reason`. We still handle a genuine non-ok as a fallback.
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (mySeq !== searchSeq) return;
+
+      if (!res.ok || !data) {
+        error = `Search failed (${res.status})`;
+        clearResults();
+        return;
+      }
+
+      // Structured failure reasons from the server.
+      if (data.reason && data.reason !== 'too_short') {
+        switch (data.reason) {
+          case 'not_connected':
+            error = 'Discogs is not connected. Connect it in Settings.';
+            break;
+          case 'not_signed_in':
+            error = 'Please sign in again.';
+            break;
+          case 'discogs_error':
+            // Show the real reason from Discogs (rate limit, bad token, etc.)
+            if (data.error && (data.error.includes('429') || data.error.toLowerCase().includes('too quickly'))) {
+              error = 'Slow down — Discogs is rate-limiting us. Wait a few seconds and try again.';
+            } else if (data.error && (data.error.includes('401') || data.error.toLowerCase().includes('unauthor') || data.error.toLowerCase().includes('invalid signature') || data.error.toLowerCase().includes('token'))) {
+              error = 'Discogs rejected the connection. Reconnect Discogs in Settings.';
+            } else {
+              error = `Discogs error: ${data.error ?? 'unknown'}`;
+            }
+            break;
+          case 'token_lookup_failed':
+            error = `Could not read your Discogs connection: ${data.error ?? 'unknown'}`;
+            break;
+          default:
+            error = `Search unavailable (${data.reason}).`;
         }
         clearResults();
         return;
       }
-      const data = await res.json();
-      if (mySeq !== searchSeq) return;
+
       results = data.results ?? [];
     } catch (err) {
       // Aborted requests are expected — ignore
@@ -182,7 +213,7 @@
         </button>
       {/each}
     </div>
-  {:else if query.length >= 3 && !loading && !error}
+  {:else if query.length >= 2 && !loading && !error}
     <div class="search-empty">No results.</div>
   {/if}
 </div>
