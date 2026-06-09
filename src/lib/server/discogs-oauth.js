@@ -101,34 +101,63 @@ export async function buildAuthHeader(opts, consumerKey, consumerSecret) {
  * consumerKey + consumerSecret loaded by caller from $env/dynamic/private.
  */
 export async function discogsRequest(opts, consumerKey, consumerSecret) {
-  const authHeader = await buildAuthHeader(opts, consumerKey, consumerSecret);
   const fetchUrl = opts.queryParams
     ? `${opts.url}?${new URLSearchParams(opts.queryParams).toString()}`
     : opts.url;
 
-  const res = await fetch(fetchUrl, {
-    method: opts.method,
-    headers: {
-      Authorization: authHeader,
-      'User-Agent': USER_AGENT,
-      Accept: opts.url.includes('/oauth/')
-        ? 'application/x-www-form-urlencoded'
-        : 'application/json'
-    }
-  });
+  // Discogs rate-limits by source IP. On Cloudflare we egress from a shared
+  // pool of IPs, so a 429 ("making requests too quickly") can be caused by
+  // other tenants' traffic, not ours — and it usually clears within a few
+  // seconds, since the limit is a 60-second moving window. So on a 429 we wait
+  // briefly and retry rather than failing the user's request outright.
+  //
+  // The auth header is rebuilt on every attempt on purpose: OAuth 1.0a needs a
+  // fresh nonce + timestamp per request; reusing them risks a replay rejection.
+  const MAX_ATTEMPTS = 3;
+  let lastError;
 
-  const text = await res.text();
-  if (!res.ok) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const authHeader = await buildAuthHeader(opts, consumerKey, consumerSecret);
+
+    const res = await fetch(fetchUrl, {
+      method: opts.method,
+      headers: {
+        Authorization: authHeader,
+        'User-Agent': USER_AGENT,
+        Accept: opts.url.includes('/oauth/')
+          ? 'application/x-www-form-urlencoded'
+          : 'application/json'
+      }
+    });
+
+    const text = await res.text();
+
+    if (res.ok) {
+      if (opts.url.includes('/oauth/')) {
+        const params = new URLSearchParams(text);
+        const result = {};
+        params.forEach((v, k) => (result[k] = v));
+        return result;
+      }
+      return JSON.parse(text);
+    }
+
+    // Only a 429 (rate limit) is worth retrying. Every other error fails fast.
+    if (res.status === 429 && attempt < MAX_ATTEMPTS) {
+      const retryAfter = Number(res.headers.get('retry-after'));
+      const waitMs =
+        Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 5000)
+          : attempt * 1500; // ~1.5s before the 2nd try, ~3s before the 3rd
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      continue;
+    }
+
     let detail = text;
     try { detail = JSON.parse(text).message || text; } catch { /* not JSON */ }
-    throw new Error(`Discogs API error ${res.status}: ${detail}`);
+    lastError = new Error(`Discogs API error ${res.status}: ${detail}`);
+    break;
   }
 
-  if (opts.url.includes('/oauth/')) {
-    const params = new URLSearchParams(text);
-    const result = {};
-    params.forEach((v, k) => (result[k] = v));
-    return result;
-  }
-  return JSON.parse(text);
+  throw lastError;
 }
