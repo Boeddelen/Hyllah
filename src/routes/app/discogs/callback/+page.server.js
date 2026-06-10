@@ -25,7 +25,9 @@ export const load = async ({ url, cookies, locals: { safeGetSession, supabase } 
 
   // User cancelled on Discogs' side
   if (denied) {
-    cookies.delete('rv_dg_req', { path: '/' });
+    // NOTE: delete path MUST match the set path in connect/+page.server.js
+    // ('/app/discogs'). A mismatched path silently fails to clear the cookie.
+    cookies.delete('rv_dg_req', { path: '/app/discogs' });
     throw redirect(303, '/app/settings?discogs=cancelled');
   }
 
@@ -59,9 +61,19 @@ export const load = async ({ url, cookies, locals: { safeGetSession, supabase } 
       oauth_verifier
     );
 
-    // Fetch identity to know who we're connected as
+    // Fetch identity to know who we're connected as. The access token is the
+    // part that authorises API calls; the username is only for display. If
+    // identity ever comes back without a username we still store the (valid)
+    // tokens so the connection works, but log it — a NULL username used to be
+    // caused by the response-parsing bug fixed in discogs-oauth.js.
     const identity = await getIdentity(accessToken, accessTokenSecret);
     const discogsUsername = identity?.username ?? null;
+    if (!discogsUsername) {
+      console.warn(
+        `[discogs-callback] identity returned no username for user ${user.id}; storing tokens anyway. Payload keys:`,
+        identity && typeof identity === 'object' ? Object.keys(identity) : typeof identity
+      );
+    }
 
     // Store on user profile
     const { error: updateError } = await supabase
@@ -79,14 +91,14 @@ export const load = async ({ url, cookies, locals: { safeGetSession, supabase } 
       throw new Error(updateError.message);
     }
 
-    // Clean up the request-token cookie
-    cookies.delete('rv_dg_req', { path: '/' });
+    // Clean up the request-token cookie (path must match the set path).
+    cookies.delete('rv_dg_req', { path: '/app/discogs' });
 
     throw redirect(303, '/app/settings?discogs=connected');
   } catch (err) {
     if (err?.status && err?.location) throw err; // re-throw redirects
     console.error('Discogs callback failed:', err);
-    cookies.delete('rv_dg_req', { path: '/' });
+    cookies.delete('rv_dg_req', { path: '/app/discogs' });
     throw redirect(
       303,
       `/app/settings?discogs=error&detail=${encodeURIComponent(err.message ?? 'unknown')}`

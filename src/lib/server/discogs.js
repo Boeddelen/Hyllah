@@ -29,7 +29,7 @@ function getConsumerCreds() {
 export async function getRequestToken(callbackUrl) {
   const { key, secret } = getConsumerCreds();
   const result = await discogsRequest(
-    { method: 'POST', url: OAUTH_REQUEST_TOKEN, callback: callbackUrl },
+    { method: 'POST', url: OAUTH_REQUEST_TOKEN, callback: callbackUrl, form: true },
     key,
     secret
   );
@@ -52,7 +52,8 @@ export async function getAccessToken(requestToken, requestTokenSecret, verifier)
       url: OAUTH_ACCESS_TOKEN,
       token: requestToken,
       tokenSecret: requestTokenSecret,
-      verifier
+      verifier,
+      form: true
     },
     key,
     secret
