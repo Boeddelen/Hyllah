@@ -64,13 +64,23 @@ export async function getRelease(mbid) {
 /**
  * Check the Cover Art Archive for front cover art for a release.
  * Returns the image URL if it exists, otherwise null.
- * CAA is a companion service to MusicBrainz with no meaningful rate limit.
+ *
+ * Uses the CAA index endpoint, which answers directly and fast (200 with a
+ * JSON listing, or 404 if no art). The actual image files live on the
+ * Internet Archive, which is slow — so we must never WAIT on archive.org
+ * here, only hand the browser a URL to load lazily.
  */
 export async function findCoverArt(mbid) {
-  const url = `https://coverartarchive.org/release/${mbid}/front-500`;
   try {
-    const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
-    return res.ok ? url : null;
+    const res = await fetch(`https://coverartarchive.org/release/${mbid}`, {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' }
+    });
+    if (!res.ok) return null; // 404 = no artwork for this release
+    const data = await res.json();
+    const front = (data.images ?? []).find((img) => img.front);
+    if (!front) return null;
+    // Prefer the 500px thumbnail (fast enough, big enough); fall back to full image.
+    return front.thumbnails?.['500'] ?? front.thumbnails?.large ?? front.image ?? null;
   } catch {
     // Cover art is a nice-to-have — never fail autofill over it.
     return null;
