@@ -3,7 +3,7 @@
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { FORMATS, CONDITIONS } from '$lib/formats';
-  import DiscogsSearch from './DiscogsSearch.svelte';
+  import MusicBrainzSearch from './MusicBrainzSearch.svelte';
   import CoverUpload from './CoverUpload.svelte';
 
   /**
@@ -244,20 +244,19 @@
     membershipsDirty = true;
   }
 
-  // ── Discogs autofill ────────────────────────────────
-  async function handleDiscogsSelect(release) {
+  // ── MusicBrainz autofill ────────────────────────────
+  // Fills metadata + cover + tracklist from MusicBrainz. Prices and the
+  // Discogs link are deliberately untouched here — pricing stays a Discogs
+  // concern, and autofilling must never clear an existing Discogs link.
+  async function handleMusicBrainzSelect(release) {
     showSearch = false;
     autofilling = true;
     errorMsg = '';
     try {
-      const res = await fetch(`/api/discogs/autofill?releaseId=${release.id}`);
+      const res = await fetch(`/api/musicbrainz/autofill?mbid=${encodeURIComponent(release.id)}`);
       if (!res.ok) {
         const txt = await res.text();
-        if (res.status === 429 || txt.includes('429') || txt.includes('too quickly')) {
-          errorMsg = 'Discogs is rate-limiting us. Wait a few seconds and try again.';
-        } else {
-          errorMsg = `Autofill failed: ${txt || res.status}`;
-        }
+        errorMsg = `Autofill failed: ${txt || res.status}`;
         return;
       }
       const data = await res.json();
@@ -268,21 +267,13 @@
       if (!label.trim() && data.label) label = data.label;
       if (!year.trim() && data.year) year = data.year;
       if (!genre.trim() && data.genre) genre = data.genre;
-      // Format: only override if it's still the default 'vinyl' and Discogs gave something
+      // Format: only override if it's still the default 'vinyl' and we got something
       if (format === 'vinyl' && data.format && data.format !== 'vinyl') {
         format = data.format;
       }
 
-      // These are always overwritten when autofilling — they're Discogs-source data,
-      // not user-typed data. Image, prices, and the Discogs link itself.
-      discogsId = data.discogs_id ?? '';
+      // Cover art is source data, not user-typed — overwrite when available.
       if (data.image_url) imageUrl = data.image_url;
-      if (data.prices) {
-        prices = data.prices;
-        priceWarning = '';
-      } else {
-        priceWarning = data.price_error ?? 'unavailable';
-      }
 
       // Tracklist: replace if current is empty OR if current has broken/empty titles
       // (an artifact of the previous bind:value bug — old records may have positions
@@ -539,7 +530,7 @@
               class="link-cta"
               onclick={() => (showSearch = !showSearch)}
             >
-              {showSearch ? 'Hide Discogs search' : 'Search Discogs to autofill'}
+              {showSearch ? 'Hide search' : 'Search to autofill'}
             </button>
           {/if}
 
@@ -550,7 +541,7 @@
                   <span class="spinner"></span> Fetching release details…
                 </div>
               {:else}
-                <DiscogsSearch onselect={handleDiscogsSelect} />
+                <MusicBrainzSearch onselect={handleMusicBrainzSelect} />
               {/if}
             </div>
           {/if}
@@ -713,7 +704,7 @@
           {#if tracksLoading}
             <div class="tracks-loading"><span class="spinner small"></span> Loading…</div>
           {:else if tracks.length === 0}
-            <div class="tracks-empty">No tracks yet. Use Discogs autofill above, or add tracks manually.</div>
+            <div class="tracks-empty">No tracks yet. Use autofill above, or add tracks manually.</div>
           {:else}
             <div class="track-rows">
               {#each tracks as track, idx (idx)}
