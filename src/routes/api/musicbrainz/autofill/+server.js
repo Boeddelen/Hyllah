@@ -99,15 +99,21 @@ export const GET = async ({ url, locals: { safeGetSession } }) => {
     throw error(400, 'Invalid mbid');
   }
 
-  // Release metadata and cover art lookup in parallel.
+  // Release metadata and cover art lookup in parallel, each timed so the
+  // Cloudflare log shows exactly where autofill time goes:
+  //   [mb-autofill] mbid=... mb=XXXms caa=YYYms total=ZZZms
   // Cover art is non-fatal — findCoverArt returns null on any failure.
+  const t0 = Date.now();
+  let mbMs = 0;
+  let caaMs = 0;
   const [releaseResult, imageUrl] = await Promise.all([
     getRelease(mbid).then(
-      (value) => ({ ok: true, value }),
-      (reason) => ({ ok: false, reason })
+      (value) => { mbMs = Date.now() - t0; return { ok: true, value }; },
+      (reason) => { mbMs = Date.now() - t0; return { ok: false, reason }; }
     ),
-    findCoverArt(mbid)
+    findCoverArt(mbid).then((url) => { caaMs = Date.now() - t0; return url; })
   ]);
+  console.log(`[mb-autofill] mbid=${mbid} mb=${mbMs}ms caa=${caaMs}ms total=${Date.now() - t0}ms`);
 
   if (!releaseResult.ok) {
     console.error('[mb-autofill] release fetch failed:', releaseResult.reason?.message);
