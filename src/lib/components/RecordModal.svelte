@@ -272,8 +272,16 @@
         format = data.format;
       }
 
-      // Cover art is source data, not user-typed — overwrite when available.
-      if (data.image_url) imageUrl = data.image_url;
+      // Cover art loads in the background — the Cover Art Archive is slow
+      // (~2s) and must never hold up the form. Snapshot the current image so
+      // we don't clobber a cover the user uploads while we wait.
+      const imageBefore = imageUrl;
+      fetch(`/api/musicbrainz/cover?mbid=${encodeURIComponent(release.id)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.image_url && imageUrl === imageBefore) imageUrl = d.image_url;
+        })
+        .catch(() => { /* cover is a nice-to-have — never surface an error for it */ });
 
       // Tracklist: replace if current is empty OR if current has broken/empty titles
       // (an artifact of the previous bind:value bug — old records may have positions

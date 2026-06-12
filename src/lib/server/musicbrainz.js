@@ -80,7 +80,10 @@ export async function findCoverArt(mbid) {
     const front = (data.images ?? []).find((img) => img.front);
     if (!front) return null;
     // Prefer the 500px thumbnail (fast enough, big enough); fall back to full image.
-    return front.thumbnails?.['500'] ?? front.thumbnails?.large ?? front.image ?? null;
+    const url = front.thumbnails?.['500'] ?? front.thumbnails?.large ?? front.image ?? null;
+    // CAA returns http:// URLs but serves https fine. Our save validation
+    // (rightly) rejects non-https image URLs, so normalize here.
+    return typeof url === 'string' ? url.replace(/^http:\/\//, 'https://') : null;
   } catch {
     // Cover art is a nice-to-have — never fail autofill over it.
     return null;
