@@ -1,5 +1,6 @@
 <script>
   import { enhance } from '$app/forms';
+  import { tick } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { FORMATS, CONDITIONS } from '$lib/formats';
@@ -68,6 +69,8 @@
   let errorMsg = $state('');
   let showSearch = $state(false);       // Discogs search panel shown?
   let autofilling = $state(false);
+  // In-flight background cover fetch (Promise|null). Saves wait briefly on it.
+  let pendingCover = null;
   let refreshingPrices = $state(false);
   let showUpload = $state(false);    // Cover-upload component visible?
 
@@ -273,15 +276,19 @@
       }
 
       // Cover art loads in the background — the Cover Art Archive is slow
-      // (~2s) and must never hold up the form. Snapshot the current image so
-      // we don't clobber a cover the user uploads while we wait.
+      // (~2s) and must never hold up the form. The promise is tracked in
+      // pendingCover so a save clicked mid-flight briefly waits for it
+      // (see the use:enhance block) instead of saving a coverless record.
+      // Snapshot the current image so we don't clobber a cover the user
+      // uploads while we wait.
       const imageBefore = imageUrl;
-      fetch(`/api/musicbrainz/cover?mbid=${encodeURIComponent(release.id)}`)
+      pendingCover = fetch(`/api/musicbrainz/cover?mbid=${encodeURIComponent(release.id)}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (d?.image_url && imageUrl === imageBefore) imageUrl = d.image_url;
         })
-        .catch(() => { /* cover is a nice-to-have — never surface an error for it */ });
+        .catch(() => { /* cover is a nice-to-have — never surface an error for it */ })
+        .finally(() => { pendingCover = null; });
 
       // Tracklist: replace if current is empty OR if current has broken/empty titles
       // (an artifact of the previous bind:value bug — old records may have positions
@@ -461,7 +468,23 @@
       <form
         method="POST"
         action="?/{isEdit ? 'update' : 'create'}"
-        use:enhance={() => {
+        use:enhance={({ formElement, cancel }) => {
+          // If the background cover fetch is still in flight, hold this
+          // submit briefly so the record saves WITH its cover. Capped at 4s —
+          // past that we save without a cover rather than hang the user.
+          if (pendingCover) {
+            cancel();
+            submitting = true;
+            Promise.race([pendingCover, new Promise((r) => setTimeout(r, 4000))]).then(
+              async () => {
+                pendingCover = null;
+                submitting = false;
+                await tick(); // flush the hidden image_url input before resubmitting
+                formElement.requestSubmit();
+              }
+            );
+            return;
+          }
           submitting = true;
           errorMsg = '';
           return async ({ result, update }) => {
