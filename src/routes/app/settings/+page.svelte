@@ -167,7 +167,7 @@
 </script>
 
 <svelte:head>
-  <title>Settings — Retro Vault</title>
+  <title>Settings — Hyllah</title>
 </svelte:head>
 
 <div class="page">
@@ -250,7 +250,7 @@
         <div class="field">
           <label for="username">Username</label>
           <div class="username-input">
-            <span class="username-prefix">retrovault.no/u/</span>
+            <span class="username-prefix">hyllah.com/u/</span>
             <input
               id="username"
               name="username"
@@ -373,7 +373,7 @@
     <h2>Discogs integration</h2>
     <p class="lede">
       Connect your Discogs account to pull in price suggestions, cover art, and tracklists when
-      adding records. Retro Vault never modifies your Discogs account — it only reads.
+      adding records. Hyllah never modifies your Discogs account — it only reads.
     </p>
 
     <div class="card">
@@ -561,7 +561,7 @@
     <h2>Public profile</h2>
     <p class="lede">
       Choose how your profile looks to visitors at
-      <span class="profile-url">retrovault.no/u/{data.profile?.username ?? 'your-username'}</span>.
+      <span class="profile-url">hyllah.com/u/{data.profile?.username ?? 'your-username'}</span>.
       This is independent from your own app theme.
     </p>
 

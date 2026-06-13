@@ -30,7 +30,7 @@ const ECB_URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml';
  */
 async function fetchEcbRates() {
   const res = await fetch(ECB_URL, {
-    headers: { 'User-Agent': 'RetroVault/1.0 (retrovault.no)' }
+    headers: { 'User-Agent': 'Hyllah/1.0 (hyllah.com)' }
   });
   if (!res.ok) throw new Error(`ECB returned ${res.status}`);
   const xml = await res.text();

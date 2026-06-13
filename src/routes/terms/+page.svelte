@@ -1,6 +1,6 @@
 <svelte:head>
-  <title>Terms of Service — Retro Vault</title>
-  <meta name="description" content="The terms under which Retro Vault is provided." />
+  <title>Terms of Service — Hyllah</title>
+  <meta name="description" content="The terms under which Hyllah is provided." />
 </svelte:head>
 
 <main class="legal-page">
@@ -8,24 +8,24 @@
 
   <article>
     <header>
-      <div class="brand-mark">Retro <em>Vault</em></div>
+      <div class="brand-mark">Hyl<em>lah</em></div>
       <h1>Terms of <em>Service</em></h1>
       <div class="meta">Last updated: 12 May 2026 · Effective: 12 May 2026</div>
     </header>
 
     <section>
       <p class="lede">
-        These are the terms under which Retro Vault is provided. By creating an account, you
+        These are the terms under which Hyllah is provided. By creating an account, you
         agree to them. They're written to be readable, not impenetrable.
       </p>
     </section>
 
     <section>
-      <h2>What Retro Vault is</h2>
+      <h2>What Hyllah is</h2>
       <p>
-        Retro Vault is a free, open-source web service for cataloging music collections. It is
+        Hyllah is a free, open-source web service for cataloging music collections. It is
         operated by Frederik Flakne, a private individual based in Norway. You can find the source
-        code at <a href="https://github.com/Boeddelen/RetroVault" target="_blank" rel="noopener">github.com/Boeddelen/RetroVault</a>
+        code at <a href="https://github.com/Boeddelen/Hyllah" target="_blank" rel="noopener">github.com/Boeddelen/Hyllah</a>
         under the MIT License.
       </p>
     </section>
@@ -43,11 +43,11 @@
     <section>
       <h2>Your content</h2>
       <p>
-        You retain full ownership of everything you put into Retro Vault — your collection data,
+        You retain full ownership of everything you put into Hyllah — your collection data,
         notes, custom fields, images, and so on. We claim no rights over your content.
       </p>
       <p>
-        By uploading content, you grant Retro Vault a limited license to store, process, and
+        By uploading content, you grant Hyllah a limited license to store, process, and
         display it solely for the purpose of providing the service to you (and to other users if
         you make your profile public). This license ends when you delete the content or your
         account.
@@ -57,7 +57,7 @@
 
     <section>
       <h2>Acceptable use</h2>
-      <p>Don't use Retro Vault to:</p>
+      <p>Don't use Hyllah to:</p>
       <ul>
         <li>Violate the law or anyone's rights</li>
         <li>Upload content that's illegal, harassing, or hateful</li>
@@ -75,7 +75,7 @@
     <section>
       <h2>Service availability</h2>
       <p>
-        Retro Vault is provided "as is" and "as available." We try our best to keep it running
+        Hyllah is provided "as is" and "as available." We try our best to keep it running
         reliably but we don't guarantee uptime. As a free service operated by an individual:
       </p>
       <ul>
@@ -85,7 +85,7 @@
         <li>We don't promise the service will be available forever</li>
       </ul>
       <p>
-        If Retro Vault is ever shut down, we will give at least 30 days' notice and provide a
+        If Hyllah is ever shut down, we will give at least 30 days' notice and provide a
         way to export all your data.
       </p>
     </section>
@@ -93,7 +93,7 @@
     <section>
       <h2>Pricing and the tip jar</h2>
       <p>
-        Retro Vault is free to use. There are no paid tiers and no plans to introduce them.
+        Hyllah is free to use. There are no paid tiers and no plans to introduce them.
         We may, in the future, add optional paid features — but core functionality (the
         collection manager) will remain free.
       </p>
@@ -106,7 +106,7 @@
     <section>
       <h2>Liability</h2>
       <p>
-        To the maximum extent permitted by law, Retro Vault and its operator are not liable
+        To the maximum extent permitted by law, Hyllah and its operator are not liable
         for any direct, indirect, incidental, or consequential damages arising from your use
         of the service. This includes (but is not limited to) loss of data, loss of profit,
         or any inability to use the service.
@@ -126,7 +126,7 @@
       <h2>Termination</h2>
       <p>
         You can delete your account at any time from your settings page, or by emailing
-        <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>. Deletion is
+        <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>. Deletion is
         permanent and removes all your data within 30 days.
       </p>
       <p>
@@ -155,8 +155,8 @@
     <section>
       <h2>Contact</h2>
       <p>
-        Questions: <a href="mailto:hello@retrovault.no">hello@retrovault.no</a><br>
-        Privacy/GDPR: <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>
+        Questions: <a href="mailto:hello@hyllah.com">hello@hyllah.com</a><br>
+        Privacy/GDPR: <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>
       </p>
     </section>
   </article>

@@ -1,13 +1,13 @@
-# Retro Vault
+# Hyllah
 
 > A quiet, private place for your music collection.
-> Open source · EU-hosted · Free · Self-hostable.
+> Open source · EU-hosted · Free forever · Self-hostable.
 
 ---
 
 ## What this is
 
-Retro Vault is a music collection manager for vinyl, CDs, cassettes, and other physical media.
+Hyllah is a music collection manager for vinyl, CDs, cassettes, and other physical media.
 It started as a single-file local-first HTML app and is being rebuilt as a multi-user web app
 that anyone can sign up for — or self-host on their own server.
 
@@ -23,13 +23,13 @@ This repository contains the new SaaS version. The original single-file app live
 | Database | Supabase (PostgreSQL, EU Zürich region) |
 | Auth | Supabase Auth — magic-link email only |
 | Storage | Supabase Storage (cover art) |
-| Email | Resend (sends magic links from `noreply@retrovault.no`) |
+| Email | Resend (sends magic links from `noreply@hyllah.com`) |
 | Analytics | Umami (privacy-first, no cookies) |
 
 ## Project structure
 
 ```
-retrovault/
+hyllah/
 ├── schema.sql                 ← Database schema — paste into Supabase SQL Editor
 ├── package.json               ← Dependencies (run `npm install`)
 ├── svelte.config.js           ← SvelteKit configuration
@@ -46,7 +46,7 @@ retrovault/
 │       ├── +layout.js        ← Provides Supabase client to all pages
 │       ├── +layout.server.js
 │       ├── +layout.svelte
-│       ├── +page.svelte      ← LANDING PAGE (retrovault.no)
+│       ├── +page.svelte      ← LANDING PAGE (hyllah.com)
 │       ├── login/
 │       │   └── +page.svelte  ← Magic-link login form
 │       ├── auth/callback/
@@ -60,7 +60,7 @@ retrovault/
 
 ## Self-hosting
 
-Coming soon — a Docker Compose file will be added so anyone can run their own Retro Vault
+Coming soon — a Docker Compose file will be added so anyone can run their own Hyllah
 instance with one command.
 
 ---

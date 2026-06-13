@@ -56,7 +56,7 @@
 </script>
 
 <svelte:head>
-  <title>Stats — Retro Vault</title>
+  <title>Stats — Hyllah</title>
 </svelte:head>
 
 <div class="page">

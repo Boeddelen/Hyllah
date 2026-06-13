@@ -29,8 +29,8 @@ const RESERVED_USERNAMES = new Set([
   'www', 'mail', 'email', 'webmail', 'ftp', 'ssh', 'root', 'system',
   'public', 'private', 'official', 'staff', 'team', 'mod', 'moderator',
   'bot', 'noreply', 'no-reply', 'donotreply', 'do-not-reply',
-  // Brand
-  'retrovault', 'retro-vault', 'retro_vault', 'vault', 'anthropic',
+  // Brand (current + legacy, kept blocked to prevent impersonation)
+  'hyllah', 'hylla', 'retrovault', 'retro-vault', 'retro_vault', 'vault', 'anthropic',
   // Inflammatory / impersonation magnets — keep these blocked
   'null', 'undefined', 'anonymous', 'me', 'you'
 ]);

@@ -7,14 +7,14 @@
 </script>
 
 <svelte:head>
-  <title>{$page.status} — Retro Vault</title>
+  <title>{$page.status} — Hyllah</title>
 </svelte:head>
 
 <main class="error-page">
   <a href="/" class="back-link">← Back to start</a>
 
   <div class="content">
-    <div class="brand-mark">Retro <em>Vault</em></div>
+    <div class="brand-mark">Hyl<em>lah</em></div>
 
     <div class="status-code">{$page.status}</div>
 

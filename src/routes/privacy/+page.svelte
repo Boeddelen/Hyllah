@@ -1,6 +1,6 @@
 <svelte:head>
-  <title>Privacy Policy — Retro Vault</title>
-  <meta name="description" content="How Retro Vault handles your data. Plainly stated." />
+  <title>Privacy Policy — Hyllah</title>
+  <meta name="description" content="How Hyllah handles your data. Plainly stated." />
 </svelte:head>
 
 <main class="legal-page">
@@ -8,14 +8,14 @@
 
   <article>
     <header>
-      <div class="brand-mark">Retro <em>Vault</em></div>
+      <div class="brand-mark">Hyl<em>lah</em></div>
       <h1>Privacy <em>Policy</em></h1>
       <div class="meta">Last updated: 12 May 2026 · Effective: 12 May 2026</div>
     </header>
 
     <section>
       <p class="lede">
-        Retro Vault is built to be a quiet, private home for your music collection. We take
+        Hyllah is built to be a quiet, private home for your music collection. We take
         the privacy of your data seriously, both because we care and because we're legally
         required to under Norwegian and EU law (GDPR).
       </p>
@@ -28,8 +28,8 @@
     <section>
       <h2>Who we are</h2>
       <p>
-        Retro Vault is operated by Frederik Flakne, an individual based in Norway.
-        Contact: <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>
+        Hyllah is operated by Frederik Flakne, an individual based in Norway.
+        Contact: <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>
       </p>
       <p>
         Under GDPR, we are the <strong>data controller</strong> for personal information you
@@ -123,13 +123,13 @@
       </ul>
       <p>
         See the <a href="/gdpr">GDPR page</a> for instructions on how to exercise these rights,
-        or just email <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>.
+        or just email <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>.
       </p>
     </section>
 
     <section>
       <h2>Third parties we use</h2>
-      <p>The following services help us operate Retro Vault:</p>
+      <p>The following services help us operate Hyllah:</p>
       <ul>
         <li><strong>Supabase</strong> (EU) — database and authentication</li>
         <li><strong>Cloudflare</strong> (global CDN) — website hosting and DNS</li>
@@ -148,7 +148,7 @@
       <h2>Public profiles (optional)</h2>
       <p>
         If you choose to make your profile public, the following becomes visible at
-        <code>retrovault.no/u/your-username</code>:
+        <code>hyllah.com/u/your-username</code>:
       </p>
       <ul>
         <li>Your username, display name, bio, and avatar (if you set them)</li>
@@ -174,7 +174,7 @@
     <section>
       <h2>Children</h2>
       <p>
-        Retro Vault is not directed at children under 16. If you are under 16, please don't
+        Hyllah is not directed at children under 16. If you are under 16, please don't
         sign up without your parent or guardian's permission.
       </p>
     </section>
@@ -191,7 +191,7 @@
     <section>
       <h2>Contact</h2>
       <p>
-        Questions, requests, complaints: <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>
+        Questions, requests, complaints: <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>
       </p>
     </section>
   </article>

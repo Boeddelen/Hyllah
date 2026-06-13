@@ -27,7 +27,7 @@
 </script>
 
 <svelte:head>
-  <title>{collection.name} · {user.display_name || user.username} · Retro Vault</title>
+  <title>{collection.name} · {user.display_name || user.username} · Hyllah</title>
   <meta name="description" content="{collection.name} — {records.length} records" />
 </svelte:head>
 

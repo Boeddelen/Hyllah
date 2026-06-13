@@ -28,7 +28,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" class:open={sidebarOpen}>
     <a href="/" class="brand-link" onclick={() => (sidebarOpen = false)}>
-      <div class="brand-mark">Retro <em>Vault</em></div>
+      <div class="brand-mark">Hyl<em>lah</em></div>
     </a>
 
     <nav class="primary-nav">

@@ -27,7 +27,7 @@
 </script>
 
 <svelte:head>
-  <title>Delete account — Retro Vault</title>
+  <title>Delete account — Hyllah</title>
 </svelte:head>
 
 <div class="page">
@@ -75,7 +75,7 @@
 
       <p class="lede serious">
         This will permanently remove your records, collections, tracklists, tags, and profile
-        from Retro Vault. Your Discogs connection will be unlinked. You will be signed out and
+        from Hyllah. Your Discogs connection will be unlinked. You will be signed out and
         the account cannot be restored.
       </p>
 

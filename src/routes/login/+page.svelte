@@ -128,14 +128,14 @@
 </script>
 
 <svelte:head>
-  <title>Sign in — Retro Vault</title>
+  <title>Sign in — Hyllah</title>
 </svelte:head>
 
 <main class="login-page">
   <a href="/" class="back-link">← Back</a>
 
   <div class="login-card">
-    <div class="brand-mark">Retro <em>Vault</em></div>
+    <div class="brand-mark">Hyl<em>lah</em></div>
     <div class="brand-sub">Sign in</div>
 
     <!-- ── Sent magic link ───────────────────────── -->

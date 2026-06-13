@@ -98,8 +98,8 @@ export const GET = async ({ locals: { safeGetSession, supabase } }) => {
 
   const payload = {
     _meta: {
-      app: 'Retro Vault',
-      app_url: 'https://retrovault.no',
+      app: 'Hyllah',
+      app_url: 'https://hyllah.com',
       schema_version: '1',
       exported_at: exportedAt,
       exported_by: user.id,
@@ -114,9 +114,9 @@ export const GET = async ({ locals: { safeGetSession, supabase } }) => {
     tracks
   };
 
-  // Build a sensible filename: retrovault-export-2025-05-20.json
+  // Build a sensible filename: hyllah-export-2025-05-20.json
   const dateStr = exportedAt.slice(0, 10);
-  const filename = `retrovault-export-${dateStr}.json`;
+  const filename = `hyllah-export-${dateStr}.json`;
 
   return new Response(JSON.stringify(payload, null, 2), {
     status: 200,

@@ -9,7 +9,7 @@
 </script>
 
 <svelte:head>
-  <title>Retro Vault — a quiet place for your music collection</title>
+  <title>Hyllah — a quiet place for your music collection</title>
 </svelte:head>
 
 <main>
@@ -18,7 +18,7 @@
       <div class="deleted-banner-inner">
         <div class="deleted-title">Your account has been deleted.</div>
         <div class="deleted-text">
-          All your records, collections, and profile data have been removed from Retro Vault.
+          All your records, collections, and profile data have been removed from Hyllah.
           Thank you for trying it out.
         </div>
       </div>
@@ -29,7 +29,7 @@
     <div class="hero-inner">
       <div class="brand">
         <div class="brand-mark">
-          Retro <em>Vault</em>
+          Hyl<em>lah</em>
         </div>
         <div class="brand-sub">Est. 2026 · A collection room</div>
       </div>
@@ -128,7 +128,7 @@
   <footer class="site-footer">
     <div class="footer-inner">
       <div class="footer-brand">
-        <div class="brand-mark small">Retro <em>Vault</em></div>
+        <div class="brand-mark small">Hyl<em>lah</em></div>
         <div class="footer-tag">A quiet place for your music collection.</div>
       </div>
       <nav class="footer-nav">
@@ -140,7 +140,7 @@
         </div>
         <div class="footer-col">
           <div class="footer-label">Open source</div>
-          <a href="https://github.com/Boeddelen/RetroVault" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/Boeddelen/Hyllah" target="_blank" rel="noopener">GitHub</a>
           <a href="/self-host">Self-host</a>
         </div>
         <div class="footer-col">
@@ -151,7 +151,7 @@
         </div>
       </nav>
       <div class="footer-copy">
-        © 2026 Retro Vault. Made in Norway. Crafted with care.
+        © 2026 Hyllah. Made in Norway. Crafted with care.
       </div>
     </div>
   </footer>

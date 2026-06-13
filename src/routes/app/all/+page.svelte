@@ -200,7 +200,7 @@
 </script>
 
 <svelte:head>
-  <title>All records · Retro Vault</title>
+  <title>All records · Hyllah</title>
 </svelte:head>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->

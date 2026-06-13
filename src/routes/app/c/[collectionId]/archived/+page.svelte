@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-  <title>Archive — {collection.name} — Retro Vault</title>
+  <title>Archive — {collection.name} — Hyllah</title>
 </svelte:head>
 
 <div class="page">

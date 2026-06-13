@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-  <title>Welcome — Retro Vault</title>
+  <title>Welcome — Hyllah</title>
 </svelte:head>
 
 <div class="setup">

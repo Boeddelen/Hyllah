@@ -8,12 +8,12 @@
 </script>
 
 <svelte:head>
-  <title>Your Vault — Retro Vault</title>
+  <title>Your Vault — Hyllah</title>
 </svelte:head>
 
 <main class="app-shell">
   <header class="app-header">
-    <div class="brand-mark">Retro <em>Vault</em></div>
+    <div class="brand-mark">Hyl<em>lah</em></div>
     <div class="user-strip">
       <span class="user-email">{data.user.email}</span>
       <button class="link-btn" onclick={signOut}>Sign out</button>

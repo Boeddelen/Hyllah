@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-  <title>Friends · Retro Vault</title>
+  <title>Friends · Hyllah</title>
 </svelte:head>
 
 <div class="friends-page">

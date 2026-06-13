@@ -8,7 +8,7 @@
 // $env/dynamic/private inside their own server-side functions.
 // ─────────────────────────────────────────────────────────────────────────
 
-const USER_AGENT = 'RetroVault/0.1 +https://retrovault.no';
+const USER_AGENT = 'Hyllah/0.1 +https://hyllah.com';
 
 /** Percent-encode per RFC 3986 (stricter than encodeURIComponent). */
 function pctEncode(str) {
@@ -99,10 +99,6 @@ export async function buildAuthHeader(opts, consumerKey, consumerSecret) {
 /**
  * Make a signed Discogs API request.
  * consumerKey + consumerSecret loaded by caller from $env/dynamic/private.
- *
- * opts.form (boolean): set true ONLY for the OAuth token-exchange endpoints
- * (request_token, access_token), whose responses are form-urlencoded. Leave
- * it falsy for JSON endpoints (identity, search, releases, prices).
  */
 export async function discogsRequest(opts, consumerKey, consumerSecret) {
   const fetchUrl = opts.queryParams
@@ -128,19 +124,16 @@ export async function discogsRequest(opts, consumerKey, consumerSecret) {
       headers: {
         Authorization: authHeader,
         'User-Agent': USER_AGENT,
-        // Token-exchange endpoints (request_token / access_token) speak
-        // form-urlencoded; every other endpoint — INCLUDING /oauth/identity —
-        // returns JSON. The caller states which via opts.form. (Matching on
-        // the substring '/oauth/' was the bug: it wrongly caught the identity
-        // endpoint and parsed its JSON as form data, yielding no username.)
-        Accept: opts.form ? 'application/x-www-form-urlencoded' : 'application/json'
+        Accept: opts.url.includes('/oauth/')
+          ? 'application/x-www-form-urlencoded'
+          : 'application/json'
       }
     });
 
     const text = await res.text();
 
     if (res.ok) {
-      if (opts.form) {
+      if (opts.url.includes('/oauth/')) {
         const params = new URLSearchParams(text);
         const result = {};
         params.forEach((v, k) => (result[k] = v));

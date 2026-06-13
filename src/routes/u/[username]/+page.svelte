@@ -85,7 +85,7 @@
 </script>
 
 <svelte:head>
-  <title>{user.username} · Retro Vault</title>
+  <title>{user.username} · Hyllah</title>
   <meta name="description" content="{user.bio || 'A music collection'}" />
 </svelte:head>
 
@@ -220,7 +220,7 @@
 
   <!-- ── Footer ────────────────────────────────────────── -->
   <footer class="footer">
-    <p>Retro Vault — a quiet place for your music collection</p>
+    <p>Hyllah — a quiet place for your music collection</p>
   </footer>
 </div>
 

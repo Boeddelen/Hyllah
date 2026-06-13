@@ -337,7 +337,7 @@
 </script>
 
 <svelte:head>
-  <title>{collection.name} — Retro Vault</title>
+  <title>{collection.name} — Hyllah</title>
 </svelte:head>
 
 <svelte:document onclick={(e) => {

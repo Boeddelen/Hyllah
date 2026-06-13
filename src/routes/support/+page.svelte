@@ -14,10 +14,10 @@
 </script>
 
 <svelte:head>
-  <title>Support Retro Vault — Tip jar</title>
+  <title>Support Hyllah — Tip jar</title>
   <meta
     name="description"
-    content="Retro Vault is free. If you'd like to chip in, the tip jar is here."
+    content="Hyllah is free. If you'd like to chip in, the tip jar is here."
   />
 </svelte:head>
 
@@ -25,13 +25,13 @@
   <a href="/" class="back-link">← Back</a>
 
   <div class="content">
-    <div class="brand-mark">Retro <em>Vault</em></div>
+    <div class="brand-mark">Hyl<em>lah</em></div>
     <div class="brand-sub">Tip jar</div>
 
     <h1>If it's <em>helpful</em>,<br />a tip is appreciated.</h1>
 
     <p class="lede">
-      Retro Vault is free. No tiers, no upsell, no premium. It runs on a small server in
+      Hyllah is free. No tiers, no upsell, no premium. It runs on a small server in
       Zürich and the bills are modest, but they're real. If you've found this useful and want
       to chip in, the jar is here.
     </p>
@@ -57,7 +57,7 @@
       <ul>
         <li>
           <strong>Star the repo</strong> on
-          <a href="https://github.com/Boeddelen/RetroVault" target="_blank" rel="noopener">GitHub</a>.
+          <a href="https://github.com/Boeddelen/Hyllah" target="_blank" rel="noopener">GitHub</a>.
           Helps others find the project.
         </li>
         <li>
@@ -65,7 +65,7 @@
         </li>
         <li>
           <strong>Report bugs and request features</strong> via
-          <a href="https://github.com/Boeddelen/RetroVault/issues" target="_blank" rel="noopener">
+          <a href="https://github.com/Boeddelen/Hyllah/issues" target="_blank" rel="noopener">
             GitHub Issues
           </a>.
         </li>

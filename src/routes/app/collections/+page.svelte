@@ -30,7 +30,7 @@
 </script>
 
 <svelte:head>
-  <title>Manage collections — Retro Vault</title>
+  <title>Manage collections — Hyllah</title>
 </svelte:head>
 
 <div class="page">

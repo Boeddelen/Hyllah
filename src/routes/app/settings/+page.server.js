@@ -28,7 +28,7 @@ const RESERVED_USERNAMES = new Set([
   'www', 'mail', 'email', 'webmail', 'ftp', 'ssh', 'root', 'system',
   'public', 'private', 'official', 'staff', 'team', 'mod', 'moderator',
   'bot', 'noreply', 'no-reply', 'donotreply', 'do-not-reply',
-  'retrovault', 'retro-vault', 'retro_vault', 'vault', 'anthropic',
+  'hyllah', 'retro-vault', 'retro_vault', 'vault', 'anthropic',
   'null', 'undefined', 'anonymous', 'me', 'you'
 ]);
 const USERNAME_RE = /^[a-z0-9_-]{3,30}$/;

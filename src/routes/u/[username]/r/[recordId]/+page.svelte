@@ -19,7 +19,7 @@
 </script>
 
 <svelte:head>
-  <title>{record.artist} – {record.title} · {user.display_name || user.username} · Retro Vault</title>
+  <title>{record.artist} – {record.title} · {user.display_name || user.username} · Hyllah</title>
   <meta name="description" content="{record.artist} – {record.title} ({record.year ?? ''})" />
 </svelte:head>
 

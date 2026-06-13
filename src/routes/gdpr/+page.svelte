@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>Your GDPR Rights — Retro Vault</title>
+  <title>Your GDPR Rights — Hyllah</title>
   <meta name="description" content="How to exercise your data rights under GDPR." />
 </svelte:head>
 
@@ -8,7 +8,7 @@
 
   <article>
     <header>
-      <div class="brand-mark">Retro <em>Vault</em></div>
+      <div class="brand-mark">Hyl<em>lah</em></div>
       <h1>Your <em>GDPR</em> rights</h1>
       <div class="meta">Last updated: 12 May 2026</div>
     </header>
@@ -21,7 +21,7 @@
       </p>
       <p class="lede">
         For most of these, the fastest path is your <a href="/app/settings">account settings page</a>.
-        For anything that needs a human, email <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a>
+        For anything that needs a human, email <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a>
         and we'll respond within 30 days (usually much faster).
       </p>
     </section>
@@ -51,7 +51,7 @@
       </p>
       <ul>
         <li><strong>Self-service:</strong> account settings → "Delete my account"</li>
-        <li><strong>By email:</strong> contact <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a> from the email address on your account</li>
+        <li><strong>By email:</strong> contact <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a> from the email address on your account</li>
       </ul>
       <p>
         Deletion is permanent. We erase your data from our active systems immediately and from
@@ -65,7 +65,7 @@
       <p>
         You can export your collection and account data in a portable JSON format from your
         settings page (coming soon — for now, email us). The format is documented in our
-        <a href="https://github.com/Boeddelen/RetroVault" target="_blank" rel="noopener">open-source repository</a>
+        <a href="https://github.com/Boeddelen/Hyllah" target="_blank" rel="noopener">open-source repository</a>
         so you can import it into other tools.
       </p>
     </section>
@@ -74,7 +74,7 @@
       <h2>Right to object</h2>
       <p>
         You can object to specific processing of your data — for example, anonymous analytics
-        collection. Contact <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a> and
+        collection. Contact <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a> and
         tell us what you'd like to opt out of.
       </p>
     </section>
@@ -119,7 +119,7 @@
         For most rights, the fastest path is your account settings. For anything else:
       </p>
       <ol>
-        <li>Email <a href="mailto:privacy@retrovault.no">privacy@retrovault.no</a> from the address on your account</li>
+        <li>Email <a href="mailto:privacy@hyllah.com">privacy@hyllah.com</a> from the address on your account</li>
         <li>Tell us which right you want to exercise and what you'd like</li>
         <li>We respond within 30 days (usually within 1-2 business days)</li>
         <li>If we need to verify your identity, we'll let you know</li>
