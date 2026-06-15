@@ -116,6 +116,14 @@ function buildRecordFromForm(form, userId, collectionId) {
     return { error: 'Invalid Discogs ID' };
   }
 
+  // MusicBrainz release id. Validate the UUID shape server-side; a malformed
+  // value means a tampered/buggy client, not normal use. The DB CHECK on
+  // records.mbid is the backstop behind this.
+  const mbid = str(form.get('mbid'));
+  if (mbid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mbid)) {
+    return { error: 'Invalid MusicBrainz ID' };
+  }
+
   const image_url = str(form.get('image_url'));
   if (image_url) {
     // Only accept https URLs from known image hosts (Discogs CDN, or our own Supabase storage)
@@ -162,6 +170,7 @@ function buildRecordFromForm(form, userId, collectionId) {
   // values on edit are preserved (we don't want to clobber a linked record
   // just because the form didn't send the field).
   if (discogs_id !== null) record.discogs_id = discogs_id;
+  if (mbid !== null) record.mbid = mbid;
   if (image_url !== null) record.image_url = image_url;
   if (prices !== null) {
     record.prices = prices;

@@ -47,6 +47,7 @@
 
   // ── Discogs fields ──────────────────────────────────
   let discogsId = $state('');
+  let mbid = $state('');               // MusicBrainz release id (from autofill)
   let imageUrl = $state('');
   let prices = $state(null);            // object | null
   let priceWarning = $state('');        // 'seller_settings' | 'unavailable' | ''
@@ -148,6 +149,7 @@
       purchasePrice = record.purchase_price?.toString() ?? '';
       valueOverride = record.value_override?.toString() ?? '';
       discogsId = record.discogs_id ?? '';
+      mbid = record.mbid ?? '';
       imageUrl = record.image_url ?? '';
       prices = record.prices && Object.keys(record.prices).length > 0 ? record.prices : null;
       // Lazy-fetch tracks for edit mode
@@ -167,6 +169,7 @@
       purchasePrice = '';
       valueOverride = '';
       discogsId = '';
+      mbid = '';
       imageUrl = '';
       prices = null;
       tracks = [];
@@ -274,6 +277,10 @@
       if (format === 'vinyl' && data.format && data.format !== 'vinyl') {
         format = data.format;
       }
+
+      // Remember which MusicBrainz release this came from. Identity data, not
+      // user-typed — always reflect the release the user just chose.
+      if (data.mbid) mbid = data.mbid;
 
       // Cover art loads in the background — the Cover Art Archive is slow
       // (~2s) and must never hold up the form. The promise is tracked in
@@ -515,6 +522,7 @@
         {/if}
         <input type="hidden" name="force" bind:value={forceCreate} />
         <input type="hidden" name="discogs_id" value={discogsId} />
+        <input type="hidden" name="mbid" value={mbid} />
         <input type="hidden" name="image_url" value={imageUrl} />
         <input type="hidden" name="prices" value={prices ? JSON.stringify(prices) : ''} />
         <input type="hidden" name="tracklist" value={tracklistJson} />
