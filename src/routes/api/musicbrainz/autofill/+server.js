@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { error, json } from '@sveltejs/kit';
-import { getRelease, MBID_RE } from '$lib/server/musicbrainz.js';
+import { getRelease, findCoverArt, MBID_RE } from '$lib/server/musicbrainz.js';
 
 /** Join MusicBrainz artist-credit array into one display string. */
 function joinArtistCredit(credit) {
@@ -99,18 +99,21 @@ export const GET = async ({ url, locals: { safeGetSession } }) => {
     throw error(400, 'Invalid mbid');
   }
 
-  // Metadata only — deliberately NO cover art here. The Cover Art Archive
-  // takes ~2s to answer (measured), so waiting on it made every autofill
-  // slow. The client fetches /api/musicbrainz/cover in the background after
-  // the fields are already filled.
+  // Release metadata and cover art lookup in parallel, each timed so the
+  // Cloudflare log shows exactly where autofill time goes:
+  //   [mb-autofill] mbid=... mb=XXXms caa=YYYms total=ZZZms
+  // Cover art is non-fatal — findCoverArt returns null on any failure.
   const t0 = Date.now();
-  let releaseResult;
-  try {
-    releaseResult = { ok: true, value: await getRelease(mbid) };
-  } catch (reason) {
-    releaseResult = { ok: false, reason };
-  }
-  console.log(`[mb-autofill] mbid=${mbid} mb=${Date.now() - t0}ms`);
+  let mbMs = 0;
+  let caaMs = 0;
+  const [releaseResult, imageUrl] = await Promise.all([
+    getRelease(mbid).then(
+      (value) => { mbMs = Date.now() - t0; return { ok: true, value }; },
+      (reason) => { mbMs = Date.now() - t0; return { ok: false, reason }; }
+    ),
+    findCoverArt(mbid).then((url) => { caaMs = Date.now() - t0; return url; })
+  ]);
+  console.log(`[mb-autofill] mbid=${mbid} mb=${mbMs}ms caa=${caaMs}ms total=${Date.now() - t0}ms`);
 
   if (!releaseResult.ok) {
     console.error('[mb-autofill] release fetch failed:', releaseResult.reason?.message);
@@ -127,6 +130,7 @@ export const GET = async ({ url, locals: { safeGetSession } }) => {
     year: typeof release.date === 'string' && release.date.length >= 4 ? release.date.slice(0, 4) : null,
     genre: joinGenres(release.genres),
     format: pickFormat(release.media),
+    image_url: imageUrl,
     tracklist: buildTracklist(release.media)
   });
 };
