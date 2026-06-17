@@ -214,6 +214,30 @@
             </div>
           </a>
           <div class="row-actions">
+            <form
+              method="POST"
+              action="?/toggleVisibility"
+              use:enhance={() => {
+                return async ({ update }) => {
+                  await update();
+                  await invalidateAll();
+                };
+              }}
+              style="display:inline"
+            >
+              <input type="hidden" name="id" value={collection.id} />
+              <input type="hidden" name="isPublic" value={(!collection.is_public).toString()} />
+              <button
+                type="submit"
+                class="link-btn toggle-public"
+                class:is-public={collection.is_public}
+                title={collection.is_public
+                  ? 'Visible on your public profile. Click to make private.'
+                  : 'Private — only you can see this. Click to show it on your public profile.'}
+              >
+                {collection.is_public ? 'Public' : 'Private'}
+              </button>
+            </form>
             <button class="link-btn" onclick={() => startEdit(collection)}>Edit</button>
             {#if data.collections.length > 1}
               <form
@@ -510,6 +534,14 @@
 
   .link-btn.danger:hover {
     color: var(--danger);
+  }
+
+  /* Visibility toggle: accent when public so the state is legible at a glance. */
+  .link-btn.toggle-public.is-public {
+    color: var(--accent);
+  }
+  .link-btn.toggle-public.is-public:hover {
+    color: var(--ink-2);
   }
 
   @media (max-width: 600px) {

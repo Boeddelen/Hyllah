@@ -68,6 +68,29 @@ export const actions = {
     return { action: 'update', success: true };
   },
 
+  // Flip a collection's public visibility. This is the only path that sets
+  // collections.is_public. Two-lock still applies: a collection appears on the
+  // public profile only when this is true AND the owner's profile is public.
+  toggleVisibility: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const id = String(form.get('id') ?? '');
+    const isPublic = String(form.get('isPublic') ?? '') === 'true';
+    if (!id) return fail(400, { action: 'toggleVisibility', error: 'Missing id' });
+
+    // Scoped to the owner — a user can only change their own collections.
+    const { error } = await supabase
+      .from('collections')
+      .update({ is_public: isPublic })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'toggleVisibility', error: error.message });
+    return { action: 'toggleVisibility', success: true };
+  },
+
   delete: async ({ request, locals: { safeGetSession, supabase } }) => {
     const { user } = await safeGetSession();
     if (!user) throw redirect(303, '/login');

@@ -42,6 +42,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
       .from('collections')
       .select('id, name, icon')
       .eq('user_id', user.id)
+      .eq('is_public', true)
       .order('name', { ascending: true });
 
     if (collErr) throw error(500, `Collections query failed: ${collErr.message}`);
