@@ -496,6 +496,22 @@
           errorMsg = '';
           return async ({ result, update }) => {
             if (result.type === 'success' || result.type === 'redirect') {
+              // Fire-and-forget: copy a freshly-saved MusicBrainz cover into
+              // our own storage so it stops hotlinking archive.org. The
+              // endpoint is idempotent (skips if already stored or N/A) and
+              // re-derives the image URL from the record's mbid server-side.
+              const savedId =
+                (result.type === 'success' && result.data?.record?.id) || record?.id;
+              if (savedId && mbid && /coverartarchive\.org/.test(imageUrl)) {
+                fetch('/api/musicbrainz/cache-cover', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recordId: savedId })
+                })
+                  .then((r) => (r.ok ? invalidateAll() : null))
+                  .catch(() => {});
+              }
+
               await update({ reset: false });
               await invalidateAll();
               submitting = false;
