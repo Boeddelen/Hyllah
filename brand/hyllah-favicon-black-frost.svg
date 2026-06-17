@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Hyllah">
+  <title>Hyllah</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a1a1a"/><stop offset="1" stop-color="#090909"/>
+    </linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcbcbc"/><stop offset="0.55" stop-color="#9a9a9a"/>
+      <stop offset="1" stop-color="#6e6e6e"/>
+    </linearGradient>
+    <linearGradient id="shelf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bcbcbc"/><stop offset="1" stop-color="#6e6e6e"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#tile)"/>
+  <rect x="1" y="1" width="254" height="254" rx="51" fill="none" stroke="#fff" stroke-opacity="0.06" stroke-width="2"/>
+  <rect x="2" y="128" width="252" height="126" rx="50" fill="#000" opacity="0.10"/>
+  <g transform="translate(42.2,-28.0) scale(1.95)">
+    <rect x="26" y="91" width="36" height="9" fill="#000" opacity="0.30"/><rect x="26" y="117" width="36" height="9" fill="#000" opacity="0.30"/><path d="M 0,130 L 0,60 A 44.0,44.0 0 0 1 88,60 L 88,130 L 62,130 L 62,60 A 18.0,18.0 0 0 0 26,60 L 26,130 Z" fill="url(#wall)"/><rect x="26" y="78" width="36" height="13" fill="url(#shelf)"/><rect x="26" y="78" width="36" height="2.2" fill="#fff" opacity="0.22"/><rect x="26" y="104" width="36" height="13" fill="url(#shelf)"/><rect x="26" y="104" width="36" height="2.2" fill="#fff" opacity="0.22"/><path d="M 26,60 A 18.0,18.0 0 0 1 62,60" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="3"/>
+  </g>
+</svg>

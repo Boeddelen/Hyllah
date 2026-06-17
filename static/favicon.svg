@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Hyllah">
+  <title>Hyllah</title>
+  <rect width="256" height="256" rx="52" fill="#121214"/>
+  <g transform="translate(42.2,-28.0) scale(1.95)" fill="#e85d3a">
+    <path d="M 0,130 L 0,60 A 44.0,44.0 0 0 1 88,60 L 88,130 L 62,130 L 62,60 A 18.0,18.0 0 0 0 26,60 L 26,130 Z"/><rect x="26" y="78" width="36" height="13"/><rect x="26" y="104" width="36" height="13"/>
+  </g>
+</svg>
