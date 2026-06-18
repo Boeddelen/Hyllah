@@ -11,7 +11,7 @@ export const load = async ({ params, locals: { supabase } }) => {
   // ── 1. Verify public user ─────────────────────────────────────
   const { data: user, error: userErr } = await supabase
     .from('users')
-    .select('id, username, display_name, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly')
+    .select('id, username, display_name, avatar_url, display_currency')
     .ilike('username', username)
     .eq('is_public', true)
     .maybeSingle();
@@ -36,9 +36,6 @@ export const load = async ({ params, locals: { supabase } }) => {
       label,
       notes,
       tags,
-      discogs_id,
-      value_override,
-      purchase_price,
       collection_id,
       created_at
     `)
@@ -73,10 +70,7 @@ export const load = async ({ params, locals: { supabase } }) => {
     condition: record.condition,
     label: record.label,
     notes: record.notes,
-    tags: record.tags ?? [],
-    discogs_id: user.show_discogs_links_publicly ? record.discogs_id : null,
-    value_override: user.show_values_publicly ? record.value_override : null,
-    purchase_price: user.show_values_publicly ? record.purchase_price : null
+    tags: record.tags ?? []
   };
 
   return {
@@ -85,9 +79,7 @@ export const load = async ({ params, locals: { supabase } }) => {
       username: user.username,
       display_name: user.display_name,
       avatar_url: user.avatar_url,
-      display_currency: user.display_currency,
-      show_values_publicly: user.show_values_publicly,
-      show_discogs_links_publicly: user.show_discogs_links_publicly
+      display_currency: user.display_currency
     },
     collection: collection ?? null,
     record: safeRecord

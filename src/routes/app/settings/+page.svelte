@@ -28,7 +28,6 @@
   let bio            = $state(data.profile?.bio ?? '');
   let displayCurrency = $state(data.profile?.display_currency ?? 'EUR');
   let isPublic        = $state(data.profile?.is_public ?? false);
-  let showValuesPublicly = $state(data.profile?.show_values_publicly ?? false);
   let savingProfile = $state(false);
 
   // ── Public profile theme state ─────────────────────────
@@ -336,25 +335,6 @@
             </span>
           </label>
         </div>
-
-        <!-- Hide values toggle -->
-        {#if isPublic}
-          <div class="field toggle-field">
-            <label class="toggle-row">
-              <input
-                type="checkbox"
-                name="show_values_publicly"
-                bind:checked={showValuesPublicly}
-              />
-              <span class="toggle-label">
-                <span class="toggle-title">Show monetary values on my public profile</span>
-                <span class="toggle-hint">
-                  When off, paid/value/totals are hidden from visitors. Counts and metadata still show.
-                </span>
-              </span>
-            </label>
-          </div>
-        {/if}
 
         <div class="pref-actions">
           <button

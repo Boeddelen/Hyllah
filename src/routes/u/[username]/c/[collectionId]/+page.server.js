@@ -15,7 +15,7 @@ export const load = async ({ params, locals: { supabase } }) => {
   // ── 1. Verify the user is public ─────────────────────────────
   const { data: user, error: userErr } = await supabase
     .from('users')
-    .select('id, username, display_name, avatar_url, display_currency, show_values_publicly, show_discogs_links_publicly')
+    .select('id, username, display_name, avatar_url, display_currency')
     .ilike('username', username)
     .eq('is_public', true)
     .maybeSingle();
@@ -53,9 +53,6 @@ export const load = async ({ params, locals: { supabase } }) => {
       condition,
       label,
       notes,
-      discogs_id,
-      value_override,
-      purchase_price,
       collection_id,
       created_at
     `)
@@ -70,7 +67,7 @@ export const load = async ({ params, locals: { supabase } }) => {
     throw error(500, 'Could not load records');
   }
 
-  // ── 4. Sanitize per user preferences ─────────────────────────
+  // ── 4. Build display payload (no monetary or Discogs data ever) ──────────
   const recordsForDisplay = (records ?? []).map((r) => ({
     id: r.id,
     artist: r.artist,
@@ -80,10 +77,7 @@ export const load = async ({ params, locals: { supabase } }) => {
     year: r.year,
     condition: r.condition,
     label: r.label,
-    notes: r.notes,
-    discogs_id: user.show_discogs_links_publicly ? r.discogs_id : null,
-    value_override: user.show_values_publicly ? r.value_override : null,
-    purchase_price: user.show_values_publicly ? r.purchase_price : null
+    notes: r.notes
   }));
 
   return {
@@ -92,9 +86,7 @@ export const load = async ({ params, locals: { supabase } }) => {
       username: user.username,
       display_name: user.display_name,
       avatar_url: user.avatar_url,
-      display_currency: user.display_currency,
-      show_values_publicly: user.show_values_publicly,
-      show_discogs_links_publicly: user.show_discogs_links_publicly
+      display_currency: user.display_currency
     },
     collection,
     records: recordsForDisplay

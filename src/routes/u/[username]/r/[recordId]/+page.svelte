@@ -1,21 +1,10 @@
 <script>
   import { FORMATS } from '$lib/formats.js';
-  import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
   const user       = $derived(data.user);
   const collection = $derived(data.collection);
   const record     = $derived(data.record);
-
-  function fmtPrice(val, currency) {
-    const n = Number(val);
-    if (!Number.isFinite(n) || n === 0) return null;
-    return formatCurrency(n, currency, { compact: false });
-  }
-
-  const discogsUrl = $derived(
-    record.discogs_id ? `https://www.discogs.com/release/${record.discogs_id}` : null
-  );
 </script>
 
 <svelte:head>
@@ -80,18 +69,6 @@
             <dd>{record.condition.replace('_', '+')}</dd>
           </div>
         {/if}
-        {#if user.show_values_publicly && record.value_override}
-          <div class="meta-row">
-            <dt>Value</dt>
-            <dd class="accent">{fmtPrice(record.value_override, user.display_currency)}</dd>
-          </div>
-        {/if}
-        {#if user.show_values_publicly && record.purchase_price}
-          <div class="meta-row">
-            <dt>Paid</dt>
-            <dd>{fmtPrice(record.purchase_price, user.display_currency)}</dd>
-          </div>
-        {/if}
       </dl>
 
       {#if record.notes}
@@ -108,11 +85,6 @@
         </div>
       {/if}
 
-      {#if discogsUrl}
-        <a href={discogsUrl} target="_blank" rel="noopener noreferrer" class="discogs-link">
-          View on Discogs →
-        </a>
-      {/if}
     </div>
   </div>
 
@@ -252,10 +224,6 @@
     text-align: right;
     margin: 0;
   }
-  .meta dd.accent {
-    color: var(--accent);
-    font-weight: 500;
-  }
 
   /* ── Notes ──────────────────────────────────────────── */
   .notes {
@@ -290,19 +258,6 @@
     border-radius: 3px;
     padding: 3px 8px;
   }
-
-  /* ── Discogs link ───────────────────────────────────── */
-  .discogs-link {
-    display: inline-block;
-    font-family: var(--ff-mono);
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
-    transition: border-color var(--t);
-  }
-  .discogs-link:hover { border-color: var(--accent); }
 
   @media (max-width: 720px) {
     .public-record { padding: 24px 20px 60px; }

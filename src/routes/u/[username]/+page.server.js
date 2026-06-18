@@ -30,7 +30,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
   if (!payload) {
     const { data: user, error: userErr } = await supabase
       .from('users')
-      .select('id, username, display_name, bio, avatar_url, is_public, display_currency, show_values_publicly, show_discogs_links_publicly, public_theme, public_mode')
+      .select('id, username, display_name, bio, avatar_url, is_public, display_currency, public_theme, public_mode')
       .ilike('username', username)
       .maybeSingle();
 
@@ -49,7 +49,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
 
     const { data: records, error: recErr } = await supabase
       .from('records')
-      .select('id, artist, title, image_url, format, year, condition, value_override, purchase_price, discogs_id, collection_id, created_at')
+      .select('id, artist, title, image_url, format, year, condition, collection_id, created_at')
       .eq('user_id', user.id)
       .eq('is_public_record', true)
       .eq('is_pending_delete', false)
@@ -63,6 +63,9 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
       return { id: coll.id, name: coll.name, icon: coll.icon, count: collRecords.length, covers };
     });
 
+    // Public records deliberately exclude every monetary field (value,
+    // purchase price) and Discogs links — these are never queried above nor
+    // sent to the client.
     const recordsForDisplay = (records ?? []).map((r) => ({
       id: r.id,
       artist: r.artist,
@@ -70,10 +73,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
       image_url: r.image_url,
       format: r.format,
       year: r.year,
-      condition: r.condition,
-      discogs_id: user.show_discogs_links_publicly ? r.discogs_id : null,
-      value_override: user.show_values_publicly ? r.value_override : null,
-      purchase_price: user.show_values_publicly ? r.purchase_price : null
+      condition: r.condition
     }));
 
     payload = {
@@ -84,8 +84,6 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
         bio: user.bio,
         avatar_url: user.avatar_url,
         display_currency: user.display_currency,
-        show_values_publicly: user.show_values_publicly,
-        show_discogs_links_publicly: user.show_discogs_links_publicly,
         public_theme: user.public_theme ?? 'listening-room',
         public_mode:  user.public_mode  ?? 'dark'
       },
@@ -93,13 +91,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
       records: recordsForDisplay,
       stats: {
         total_records: recordsForDisplay.length,
-        total_collections: collectionSummaries.length,
-        total_value: user.show_values_publicly
-          ? recordsForDisplay.reduce((sum, r) => {
-              const v = Number(r.value_override);
-              return sum + (Number.isFinite(v) ? v : 0);
-            }, 0)
-          : null
+        total_collections: collectionSummaries.length
       }
     };
 

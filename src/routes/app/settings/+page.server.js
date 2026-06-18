@@ -136,7 +136,7 @@ export const actions = {
 
   /**
    * Update profile fields: username, display_name, bio, display_currency,
-   * is_public, show_values_publicly. Validates each field defensively and
+   * is_public. Validates each field defensively and
    * surfaces user-friendly errors via URL params.
    */
   updateProfile: async ({ request, locals: { safeGetSession, supabase } }) => {
@@ -149,7 +149,6 @@ export const actions = {
     const bioRaw = (form.get('bio') ?? '').toString().trim();
     const currencyRaw = (form.get('display_currency') ?? 'EUR').toString().trim().toUpperCase();
     const isPublic = form.get('is_public') === 'on';
-    const showValues = form.get('show_values_publicly') === 'on';
 
     // ── Username validation ────────────────────────────────────────
     let username = null;
@@ -213,8 +212,7 @@ export const actions = {
         display_name: displayName,
         bio,
         display_currency: currencyRaw,
-        is_public: finalIsPublic,
-        show_values_publicly: showValues
+        is_public: finalIsPublic
       })
       .eq('id', user.id);
 

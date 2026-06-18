@@ -3,7 +3,6 @@
   import { beforeNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
   import { enhance } from '$app/forms';
-  import { formatCurrency } from '$lib/currency.js';
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
   let { data } = $props();
@@ -71,17 +70,6 @@
   beforeNavigate(() => {
     restoreVisitorTheme();
   });
-
-  function toDisplay(eur, displayCurrency, rates) {
-    if (!eur || !rates) return eur;
-    const rate = rates[displayCurrency] ?? 1;
-    return eur * rate;
-  }
-
-  function fmtPrice(n, currency) {
-    if (!Number.isFinite(n) || n === 0) return '—';
-    return formatCurrency(n, currency, { compact: true });
-  }
 </script>
 
 <svelte:head>
@@ -118,12 +106,6 @@
           <span class="stat-label">Collections</span>
           <span class="stat-value">{stats.total_collections}</span>
         </div>
-        {#if user.show_values_publicly && stats.total_value !== null}
-          <div class="stat">
-            <span class="stat-label">Total value</span>
-            <span class="stat-value accent">{fmtPrice(toDisplay(stats.total_value, user.display_currency, data.rates), user.display_currency)}</span>
-          </div>
-        {/if}
       </div>
 
       <!-- ── Social actions ─────────────────────────────────── -->
@@ -193,9 +175,6 @@
               <div class="record-info">
                 <div class="record-artist">{record.artist}</div>
                 <div class="record-title">{record.title}</div>
-                {#if user.show_values_publicly && record.value_override}
-                  <div class="record-value">{fmtPrice(toDisplay(Number(record.value_override), user.display_currency, data.rates), user.display_currency)}</div>
-                {/if}
               </div>
             </a>
           {/each}
@@ -210,10 +189,14 @@
   {/if}
 
   <!-- ── Empty state ────────────────────────────────────── -->
-  {#if records.length === 0}
+  {#if collections.length === 0 && records.length === 0}
     <section class="section">
       <div class="section-inner empty">
-        <p>No public records yet.</p>
+        {#if viewer.isOwnProfile}
+          <p>Your profile is public, but you haven't shared anything yet. Flip a collection or a record to <strong>Public</strong> to show it here.</p>
+        {:else}
+          <p>This collector hasn't made anything public yet.</p>
+        {/if}
       </div>
     </section>
   {/if}
@@ -319,10 +302,6 @@
     color: var(--ink);
   }
 
-  .stat-value.accent {
-    color: var(--accent);
-  }
-
   /* ── Social actions ────────────────────────────────────── */
   .social-actions {
     margin-top: 28px;
@@ -383,12 +362,12 @@
     color: var(--ink);
   }
 
-  .section.empty {
+  .section-inner.empty {
     text-align: center;
     padding: 100px 40px;
   }
 
-  .section.empty p {
+  .section-inner.empty p {
     font-family: var(--ff-display);
     font-size: 16px;
     color: var(--ink-2);
@@ -516,13 +495,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .record-value {
-    font-family: var(--ff-mono);
-    font-size: 11px;
-    color: var(--accent);
-    font-weight: 500;
   }
 
   .view-all {

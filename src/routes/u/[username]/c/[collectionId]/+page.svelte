@@ -1,6 +1,5 @@
 <script>
   import { FORMATS } from '$lib/formats.js';
-  import { formatCurrency } from '$lib/currency.js';
 
   let { data } = $props();
   const user       = $derived(data.user);
@@ -18,12 +17,6 @@
         )
       : records
   );
-
-  function fmtPrice(val, currency) {
-    const n = Number(val);
-    if (!Number.isFinite(n) || n === 0) return null;
-    return formatCurrency(n, currency, { compact: false });
-  }
 </script>
 
 <svelte:head>
@@ -95,9 +88,6 @@
             {/if}
             {#if record.condition}
               <div class="record-condition">{record.condition.replace('_', '+')}</div>
-            {/if}
-            {#if user.show_values_publicly && record.value_override}
-              <div class="record-value">{fmtPrice(record.value_override, user.display_currency)}</div>
             {/if}
           </div>
         </a>
@@ -299,14 +289,6 @@
     font-size: 10px;
     color: var(--ink-3);
   }
-  .record-value {
-    font-family: var(--ff-mono);
-    font-size: 11px;
-    color: var(--accent);
-    font-weight: 500;
-    margin-top: 2px;
-  }
-
   /* ── Empty state ───────────────────────────────────── */
   .empty {
     padding: 80px 0;
