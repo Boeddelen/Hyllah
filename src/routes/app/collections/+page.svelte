@@ -12,6 +12,7 @@
   let createName = $state('');
   let createIcon = $state('💿');
   let createDesc = $state('');
+  let createPublic = $state(false);
 
   let editName = $state('');
   let editIcon = $state('💿');
@@ -64,6 +65,7 @@
             createName = '';
             createDesc = '';
             createIcon = '💿';
+            createPublic = false;
           };
         }}
       >
@@ -109,6 +111,30 @@
             maxlength="200"
             placeholder="e.g. Records I actually own and play"
           />
+        </div>
+
+        <div class="field">
+          <label>Visibility</label>
+          <div class="visibility-toggle">
+            <button
+              type="button"
+              class="vis-option"
+              class:active={!createPublic}
+              onclick={() => (createPublic = false)}
+            >Private</button>
+            <button
+              type="button"
+              class="vis-option"
+              class:active={createPublic}
+              onclick={() => (createPublic = true)}
+            >Public</button>
+          </div>
+          <input type="hidden" name="isPublic" value={createPublic.toString()} />
+          <p class="vis-hint">
+            {createPublic
+              ? 'Shown on your public profile (once your profile itself is public).'
+              : 'Only you can see this collection.'}
+          </p>
         </div>
 
         {#if form?.action === 'create' && form?.error}
@@ -520,16 +546,18 @@
     padding: 8px 12px;
     font-family: var(--ff-mono);
     font-size: 10px;
+    font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--ink-3);
+    color: var(--ink-2);
     cursor: pointer;
     border-radius: var(--radius);
-    transition: color var(--t);
+    transition: color var(--t), background var(--t);
   }
 
   .link-btn:hover {
     color: var(--accent);
+    background: var(--bg-3);
   }
 
   .link-btn.danger:hover {
@@ -542,6 +570,44 @@
   }
   .link-btn.toggle-public.is-public:hover {
     color: var(--ink-2);
+  }
+
+  /* Create-form visibility segmented control */
+  .visibility-toggle {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-3);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+  }
+  .vis-option {
+    background: none;
+    border: none;
+    padding: 7px 18px;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    cursor: pointer;
+    border-radius: calc(var(--radius) - 2px);
+    transition: color var(--t), background var(--t);
+  }
+  .vis-option:hover {
+    color: var(--ink);
+  }
+  .vis-option.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .vis-hint {
+    margin: 8px 0 0;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
   }
 
   @media (max-width: 600px) {

@@ -10,6 +10,7 @@ export const actions = {
     const name = String(form.get('name') ?? '').trim();
     const icon = String(form.get('icon') ?? '💿').trim();
     const description = String(form.get('description') ?? '').trim();
+    const isPublic = String(form.get('isPublic') ?? '') === 'true';
 
     if (!name || name.length > 60) {
       return fail(400, { action: 'create', error: 'Name must be 1–60 characters' });
@@ -31,6 +32,7 @@ export const actions = {
         name,
         icon,
         description: description || null,
+        is_public: isPublic,
         sort_order: nextOrder
       })
       .select()
