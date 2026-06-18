@@ -5,7 +5,9 @@ import { getFriendshipStatus, blockExistsBetween } from '$lib/server/friendships
 // (user/collections/records/stats). The viewer-specific friendshipStatus is
 // computed separately on every request and merged in, so it's never cached.
 const profileCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// Short TTL: public visibility changes (a collection or record made private)
+// should stop being visible to strangers quickly, not linger for minutes.
+const CACHE_TTL_MS = 30 * 1000;
 
 function getCachedProfile(username) {
   const key = username.toLowerCase();
@@ -24,10 +26,18 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
   const { username } = params;
   if (!username || typeof username !== 'string') throw error(404, 'Profile not found');
 
+  // Resolve the viewer up front. The owner viewing their own profile always
+  // bypasses the cache (below) so their visibility toggles apply immediately,
+  // instead of waiting for the TTL to expire.
+  const { user: viewer } = await safeGetSession();
+
   // Resolve the public, cacheable part of the profile.
   let payload = getCachedProfile(username);
 
-  if (!payload) {
+  // Owner always gets a fresh build; everyone else can use the cache.
+  const viewerIsOwner = viewer && payload && viewer.id === payload.user.id;
+
+  if (!payload || viewerIsOwner) {
     const { data: user, error: userErr } = await supabase
       .from('users')
       .select('id, username, display_name, bio, avatar_url, is_public, display_currency, public_theme, public_mode')
@@ -99,9 +109,7 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
   }
 
   // ── Viewer-specific state (never cached) ──────────────────────────────────
-  // Determine the logged-in viewer and their friendship status with this profile.
-  const { user: viewer } = await safeGetSession();
-
+  // Friendship status with this profile (viewer was resolved up front).
   let friendshipStatus = 'none';
   let isOwnProfile = false;
   const isLoggedIn = !!viewer;
