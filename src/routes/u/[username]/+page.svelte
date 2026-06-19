@@ -1,7 +1,4 @@
 <script>
-  import { onMount } from 'svelte';
-  import { beforeNavigate } from '$app/navigation';
-  import { browser } from '$app/environment';
   import { enhance } from '$app/forms';
   import { FORMATS, shortCondition } from '$lib/formats.js';
 
@@ -35,41 +32,6 @@
       await update({ reset: false });
     };
   }
-
-  // Apply the profile owner's chosen public theme while viewing this page.
-  // On leaving, restore the visitor's OWN theme from localStorage (the source
-  // of truth) rather than whatever was in the DOM — this is reliable across
-  // profile-to-profile navigation and back-button cases.
-  function applyProfileTheme() {
-    if (!browser) return;
-    const el = document.documentElement;
-    el.setAttribute('data-theme', user.public_theme ?? 'listening-room');
-    el.setAttribute('data-mode',  user.public_mode  ?? 'dark');
-  }
-
-  function restoreVisitorTheme() {
-    if (!browser) return;
-    const el = document.documentElement;
-    let storedTheme = null;
-    let storedMode = null;
-    try {
-      storedTheme = localStorage.getItem('rv-theme-id');
-      storedMode = localStorage.getItem('rv-mode');
-    } catch { /* storage disabled */ }
-
-    // Restore the visitor's saved theme, or fall back to defaults
-    // (listening-room / dark) so the profile's theme never lingers.
-    el.setAttribute('data-theme', storedTheme || 'listening-room');
-    el.setAttribute('data-mode', storedMode === 'light' ? 'light' : 'dark');
-  }
-
-  onMount(() => {
-    applyProfileTheme();
-  });
-
-  beforeNavigate(() => {
-    restoreVisitorTheme();
-  });
 </script>
 
 <svelte:head>
