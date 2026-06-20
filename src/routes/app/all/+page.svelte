@@ -70,20 +70,41 @@
   let modalOpen = $state(false);
   let editingRecord = $state(null);
 
-  let visibleRecords = $derived(
-    pendingDelete?.optimisticallyRemoved
-      ? records.filter((r) => r.id !== pendingDelete.id)
-      : records
-  );
+  // ── Bulk-select state ──────────────────────────────
+  let selectMode = $state(false);
+  let selectedIds = $state(new Set());
+  let pendingBulkDelete = $state(null);
+  const selectedCount = $derived(selectedIds.size);
 
-  function toggleFlip(id, e) {
+  let visibleRecords = $derived.by(() => {
+    let list = records;
+    if (pendingDelete?.optimisticallyRemoved) {
+      list = list.filter((r) => r.id !== pendingDelete.id);
+    }
+    if (pendingBulkDelete?.ids?.length) {
+      const gone = new Set(pendingBulkDelete.ids);
+      list = list.filter((r) => !gone.has(r.id));
+    }
+    return list;
+  });
+
+  // In select mode a card tap toggles its selection; otherwise it flips.
+  function onCardClick(record, e) {
     if (e?.target?.closest('button, a, form')) return;
-    flippedId = flippedId === id ? null : id;
+    if (selectMode) {
+      toggleSelect(record.id);
+      return;
+    }
+    flippedId = flippedId === record.id ? null : record.id;
   }
 
   function handleCardKey(id, e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
+      if (selectMode) {
+        toggleSelect(id);
+        return;
+      }
       flippedId = flippedId === id ? null : id;
     }
   }
@@ -181,6 +202,106 @@
     }
   }
 
+  // ── Bulk selection ─────────────────────────────────
+  function toggleSelectMode() {
+    if (selectMode) {
+      exitSelect();
+    } else {
+      selectMode = true;
+      flippedId = null;
+    }
+  }
+
+  function exitSelect() {
+    selectMode = false;
+    selectedIds = new Set();
+  }
+
+  function toggleSelect(id) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedIds = next;
+  }
+
+  function selectAllVisible() {
+    selectedIds = new Set(visibleRecords.map((r) => r.id));
+  }
+
+  async function postIds(action, ids, extra = {}) {
+    const fd = new FormData();
+    fd.append('ids', ids.join(','));
+    for (const [k, v] of Object.entries(extra)) fd.append(k, v);
+    return fetch(`?/${action}`, { method: 'POST', body: fd });
+  }
+
+  async function bulkArchive() {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    exitSelect();
+    try {
+      const res = await postIds('bulkArchive', ids);
+      if (!res.ok) throw new Error('bad status');
+      await invalidateAll();
+    } catch (err) {
+      console.error('bulkArchive failed', err);
+      alert('Could not archive those records — please try again.');
+    }
+  }
+
+  async function bulkSetPrivacy(isPublic) {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    exitSelect();
+    try {
+      const res = await postIds('bulkSetPrivacy', ids, { isPublic: String(isPublic) });
+      if (!res.ok) throw new Error('bad status');
+      await invalidateAll();
+    } catch (err) {
+      console.error('bulkSetPrivacy failed', err);
+      alert('Could not update those records — please try again.');
+    }
+  }
+
+  function bulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (!ids.length) return;
+    const n = ids.length;
+    if (!confirm(`Delete ${n} record${n === 1 ? '' : 's'}? You'll have a few seconds to undo.`)) return;
+    // Optimistically hide them and show one undo toast for the whole batch.
+    pendingBulkDelete = { ids, count: n };
+    exitSelect();
+    postIds('bulkSoftDelete', ids).catch((err) => {
+      console.error('bulkSoftDelete failed', err);
+      pendingBulkDelete = null;
+      alert('Could not delete those records — please try again.');
+    });
+  }
+
+  async function undoBulkDelete() {
+    if (!pendingBulkDelete) return;
+    const ids = pendingBulkDelete.ids;
+    pendingBulkDelete = null;
+    try {
+      await postIds('bulkUndoDelete', ids);
+      await invalidateAll();
+    } catch (err) {
+      console.error('bulkUndoDelete failed', err);
+    }
+  }
+
+  async function commitBulkDelete() {
+    if (!pendingBulkDelete) return;
+    const ids = pendingBulkDelete.ids;
+    pendingBulkDelete = null;
+    try {
+      await postIds('bulkCommitDelete', ids);
+      await invalidateAll();
+    } catch (err) {
+      console.error('bulkCommitDelete failed', err);
+    }
+  }
+
   // ── Filter URL sync ────────────────────────────────
   function onFilterChange(detail) {
     const sp = new URLSearchParams();
@@ -211,6 +332,11 @@
       <div class="eyebrow">Your vault</div>
       <h1>{visibleRecords.length} {visibleRecords.length === 1 ? 'record' : 'records'}.</h1>
     </div>
+    {#if visibleRecords.length > 0}
+      <button class="select-toggle" class:active={selectMode} onclick={toggleSelectMode}>
+        {selectMode ? 'Cancel' : 'Select'}
+      </button>
+    {/if}
   </header>
 
   <FilterBar
@@ -248,13 +374,15 @@
         {@const cv = currentValueOf(record, valuationOpts)}
         <div
           class="record-card"
-          class:flipped={isFlipped}
-          onclick={(e) => toggleFlip(record.id, e)}
+          class:flipped={isFlipped && !selectMode}
+          class:selecting={selectMode}
+          class:selected={selectMode && selectedIds.has(record.id)}
+          onclick={(e) => onCardClick(record, e)}
           onkeydown={(e) => handleCardKey(record.id, e)}
           role="button"
           tabindex="0"
           aria-label="{record.artist} – {record.title}. Press Enter to flip."
-          aria-pressed={isFlipped}
+          aria-pressed={selectMode ? selectedIds.has(record.id) : isFlipped}
         >
           <div class="card-face card-front">
             <div class="cover">
@@ -266,6 +394,11 @@
                 </div>
               {/if}
               <div class="cover-badge">{FORMATS[record.format]?.label ?? record.format}</div>
+              {#if selectMode}
+                <div class="select-check" class:on={selectedIds.has(record.id)} aria-hidden="true">
+                  {#if selectedIds.has(record.id)}✓{/if}
+                </div>
+              {/if}
             </div>
             <div class="card-front-body">
               <div class="card-artist">{record.artist}</div>
@@ -455,6 +588,20 @@
   currentCollectionId={null}
 />
 
+{#if selectMode && selectedCount > 0}
+  <div class="bulk-bar" role="region" aria-label="Bulk actions">
+    <div class="bulk-count">{selectedCount} selected</div>
+    <div class="bulk-actions">
+      <button class="bulk-btn" onclick={selectAllVisible}>Select all</button>
+      <span class="bulk-sep" aria-hidden="true"></span>
+      <button class="bulk-btn" onclick={() => bulkSetPrivacy(true)}>Make public</button>
+      <button class="bulk-btn" onclick={() => bulkSetPrivacy(false)}>Make private</button>
+      <button class="bulk-btn" onclick={bulkArchive}>Archive</button>
+      <button class="bulk-btn danger" onclick={bulkDelete}>Delete</button>
+    </div>
+  </div>
+{/if}
+
 {#if pendingDelete}
   <UndoToast
     label={pendingDelete.label}
@@ -463,9 +610,41 @@
   />
 {/if}
 
+{#if pendingBulkDelete}
+  <UndoToast
+    label={`${pendingBulkDelete.count} record${pendingBulkDelete.count === 1 ? '' : 's'}`}
+    onundo={undoBulkDelete}
+    onexpire={commitBulkDelete}
+  />
+{/if}
+
 <style>
   .page { padding: 40px 40px 80px; }
-  .page-header { margin-bottom: 24px; }
+  .page-header {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .select-toggle {
+    flex-shrink: 0;
+    margin-top: 6px;
+    background: none;
+    border: 1px solid var(--groove);
+    color: var(--ink-2);
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--t), border-color var(--t), background var(--t);
+  }
+  .select-toggle:hover { color: var(--ink); border-color: var(--ink-3); }
+  .select-toggle.active { color: var(--accent); border-color: var(--accent); }
   .eyebrow {
     font-family: var(--ff-mono); font-size: 11px; font-weight: 500;
     letter-spacing: 0.18em; text-transform: uppercase;
@@ -541,6 +720,69 @@
     letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 8px; border-radius: 99px;
   }
+  /* Bulk-select visuals */
+  .select-check {
+    position: absolute; top: 8px; left: 8px;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    background: var(--overlay); backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 13px; font-weight: 700;
+    z-index: 2;
+  }
+  .select-check.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .record-card.selecting { cursor: pointer; }
+  .record-card.selected {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Bulk action bar */
+  .bulk-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: calc(100vw - 32px);
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+  }
+  .bulk-count {
+    font-family: var(--ff-mono);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-2); white-space: nowrap;
+  }
+  .bulk-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .bulk-sep { width: 1px; height: 20px; background: var(--groove); }
+  .bulk-btn {
+    background: none;
+    border: 1px solid var(--groove);
+    color: var(--ink-2);
+    font-family: var(--ff-mono);
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 7px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color var(--t), border-color var(--t), background var(--t);
+  }
+  .bulk-btn:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-3); }
+  .bulk-btn.danger { color: var(--danger); }
+  .bulk-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--bg-3); }
+
   .card-front-body { padding: 12px 14px 10px; }
   .card-artist {
     font-family: var(--ff-mono); font-size: 11px; font-weight: 500;

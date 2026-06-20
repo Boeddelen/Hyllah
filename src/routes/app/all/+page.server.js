@@ -24,6 +24,25 @@ function str(v) {
   return s ? s : null;
 }
 
+/**
+ * Parse a bulk selection of record IDs from the form's comma-separated `ids`
+ * field. Validates UUID shape, de-duplicates, and caps the batch so a single
+ * request can't operate on an unbounded set. Ownership is still enforced per
+ * query (.eq('user_id', ...)); this only sanitises the input.
+ */
+function parseIds(form) {
+  const raw = (form.get('ids') ?? '').toString();
+  if (!raw.trim()) return [];
+  return Array.from(
+    new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => /^[0-9a-f-]{36}$/i.test(s))
+    )
+  ).slice(0, 200);
+}
+
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ parent, url, locals: { supabase } }) => {
   const { user, profile } = await parent();
@@ -78,6 +97,89 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  // ── Bulk actions (operate on a validated set of the user's own records) ──
+  bulkArchive: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const ids = parseIds(await request.formData());
+    if (!ids.length) return fail(400, { action: 'bulkArchive', error: 'No records selected' });
+
+    const { error } = await supabase
+      .from('records')
+      .update({ is_archived: true, archived_at: new Date().toISOString() })
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'bulkArchive', error: error.message });
+    return { action: 'bulkArchive', success: true, count: ids.length };
+  },
+
+  bulkSetPrivacy: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const form = await request.formData();
+    const ids = parseIds(form);
+    const isPublic = String(form.get('isPublic') ?? '') === 'true';
+    if (!ids.length) return fail(400, { action: 'bulkSetPrivacy', error: 'No records selected' });
+
+    const { error } = await supabase
+      .from('records')
+      .update({ is_public_record: isPublic })
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'bulkSetPrivacy', error: error.message });
+    return { action: 'bulkSetPrivacy', success: true, count: ids.length, isPublic };
+  },
+
+  bulkSoftDelete: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const ids = parseIds(await request.formData());
+    if (!ids.length) return fail(400, { action: 'bulkSoftDelete', error: 'No records selected' });
+
+    const { error } = await supabase
+      .from('records')
+      .update({ is_pending_delete: true, pending_delete_at: new Date().toISOString() })
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'bulkSoftDelete', error: error.message });
+    return { action: 'bulkSoftDelete', success: true, count: ids.length };
+  },
+
+  bulkUndoDelete: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const ids = parseIds(await request.formData());
+    if (!ids.length) return fail(400, { action: 'bulkUndoDelete', error: 'No records selected' });
+
+    const { error } = await supabase
+      .from('records')
+      .update({ is_pending_delete: false, pending_delete_at: null })
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'bulkUndoDelete', error: error.message });
+    return { action: 'bulkUndoDelete', success: true };
+  },
+
+  bulkCommitDelete: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const ids = parseIds(await request.formData());
+    if (!ids.length) return fail(400, { action: 'bulkCommitDelete', error: 'No records selected' });
+
+    const { error } = await supabase
+      .from('records')
+      .delete()
+      .in('id', ids)
+      .eq('user_id', user.id);
+
+    if (error) return fail(500, { action: 'bulkCommitDelete', error: error.message });
+    return { action: 'bulkCommitDelete', success: true };
+  },
+
   // Edit an existing record from the all-records view. Mirrors the collection
   // view's `update`, but with no "current collection" to force-include — the
   // modal's collection selection stands on its own (setRecordCollections still
