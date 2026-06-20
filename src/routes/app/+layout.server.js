@@ -9,12 +9,21 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
   if (!session || !user) throw redirect(303, '/login');
 
   // Profile, collections, counts, and pending friend requests in parallel.
-  const [profile, collections, counts, pendingRequestCount] = await Promise.all([
+  const [profile, collections, counts, pendingRequestCount, archivedRes] = await Promise.all([
     loadUserProfile(supabase, user.id),
     loadCollections(supabase, user.id),
     loadCollectionCounts(supabase, user.id),
-    countPendingIncoming(supabase, user.id)
+    countPendingIncoming(supabase, user.id),
+    // Distinct archived records (a per-collection sum would double-count
+    // records that live in more than one collection).
+    supabase
+      .from('records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_archived', true)
+      .eq('is_pending_delete', false)
   ]);
+  const archivedCount = archivedRes?.count ?? 0;
 
   // Rates: only fetch if the user's display currency is non-EUR. Saves a
   // DB round-trip + (occasionally) an ECB call for users who don't need
@@ -37,6 +46,7 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
     counts,
     rates,
     displayCurrency,
-    pendingRequestCount
+    pendingRequestCount,
+    archivedCount
   };
 };
