@@ -3,8 +3,10 @@ import {
   loadRecords,
   loadCollections,
   loadAllRecordCollections,
-  loadVaultFacets
+  loadVaultFacets,
+  setRecordCollections
 } from '$lib/server/db';
+import { buildRecordFromForm, parseTracklist, parseCollections } from '$lib/server/recordForm.js';
 
 function arrParam(url, key) {
   const raw = url.searchParams.get(key);
@@ -76,6 +78,63 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  // Edit an existing record from the all-records view. Mirrors the collection
+  // view's `update`, but with no "current collection" to force-include — the
+  // modal's collection selection stands on its own (setRecordCollections still
+  // enforces that a record keeps at least one collection).
+  update: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const recordId = str(form.get('id'));
+    if (!recordId) return fail(400, { action: 'update', error: 'Missing record id' });
+
+    const built = buildRecordFromForm(form, user.id, null);
+    if (built.error) return fail(400, { action: 'update', error: built.error });
+
+    const { user_id, collection_id, ...updateFields } = built.record;
+
+    const { error: dbError } = await supabase
+      .from('records')
+      .update(updateFields)
+      .eq('id', recordId)
+      .eq('user_id', user.id);
+
+    if (dbError) return fail(500, { action: 'update', error: dbError.message });
+
+    // Sync collection membership if the modal sent a selection.
+    const collectionSet = parseCollections(form, null);
+    if (collectionSet !== null) {
+      const res = await setRecordCollections(supabase, user.id, recordId, collectionSet);
+      if (!res.ok) {
+        console.error('setRecordCollections failed (non-fatal):', res.error);
+      }
+    }
+
+    // Replace tracklist if sent (empty field means "leave existing alone").
+    const tracklist = parseTracklist(form);
+    if (tracklist !== null) {
+      const { data: ownerCheck } = await supabase
+        .from('records')
+        .select('id')
+        .eq('id', recordId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (ownerCheck) {
+        await supabase.from('tracks').delete().eq('record_id', recordId);
+        if (tracklist.length > 0) {
+          const tracks = tracklist.map((t) => ({ ...t, record_id: recordId }));
+          const { error: tracksError } = await supabase.from('tracks').insert(tracks);
+          if (tracksError) console.error('Track update failed:', tracksError);
+        }
+      }
+    }
+
+    return { action: 'update', success: true };
+  },
+
   softDelete: async ({ request, locals: { safeGetSession, supabase } }) => {
     const { user } = await safeGetSession();
     if (!user) throw redirect(303, '/login');
