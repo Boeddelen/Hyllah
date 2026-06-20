@@ -447,17 +447,13 @@
   {/if}
 </div>
 
-{#if modalOpen && editingRecord}
-  <RecordModal
-    record={editingRecord}
-    mode="edit"
-    allCollections={allCollections}
-    supabase={data.supabase}
-    userId={data.user.id}
-    onclose={onModalClose}
-    onsaved={() => { onModalClose(); invalidateAll(); }}
-  />
-{/if}
+<RecordModal
+  bind:open={modalOpen}
+  record={editingRecord}
+  onclose={onModalClose}
+  allCollections={allCollections}
+  currentCollectionId={null}
+/>
 
 {#if pendingDelete}
   <UndoToast
