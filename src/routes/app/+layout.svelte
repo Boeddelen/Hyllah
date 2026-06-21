@@ -92,17 +92,19 @@
             <span class="nav-badge">{data.pendingRequestCount}</span>
           {/if}
         </a>
-        <a
-          href="/app/archived"
-          class="nav-item"
-          class:active={isActive('/app/archived')}
-          onclick={() => (sidebarOpen = false)}
-        >
-          <span class="nav-text">Archive</span>
-          {#if (data.archivedCount ?? 0) > 0}
-            <span class="nav-count">{data.archivedCount}</span>
-          {/if}
-        </a>
+        {#if data.profile?.show_archive !== false}
+          <a
+            href="/app/archived"
+            class="nav-item"
+            class:active={isActive('/app/archived')}
+            onclick={() => (sidebarOpen = false)}
+          >
+            <span class="nav-text">Archive</span>
+            {#if (data.archivedCount ?? 0) > 0}
+              <span class="nav-count">{data.archivedCount}</span>
+            {/if}
+          </a>
+        {/if}
       </div>
 
       <div class="nav-section">

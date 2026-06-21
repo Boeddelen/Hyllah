@@ -20,6 +20,7 @@
   let cardBackView = $state(data.profile?.card_back_view ?? 'details');
   let useDiscogsPrices = $state(data.profile?.use_discogs_prices !== false); // default true
   let showValueSource = $state(data.profile?.show_value_source === true);     // default false
+  let showArchive = $state(data.profile?.show_archive !== false);            // default true (shown)
   let savingPrefs = $state(false);
 
   // ── Profile state ──────────────────────────────────────
@@ -522,6 +523,21 @@
               <span class="toggle-hint">
                 Annotates each record's Value row with "your value" or "from Discogs" so it's
                 clear where the number comes from.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        <div class="pref-row pref-row-bordered">
+          <div class="pref-label">Sidebar</div>
+          <label class="toggle-row">
+            <input type="checkbox" name="show_archive" bind:checked={showArchive} />
+            <span class="toggle-label">
+              <span class="toggle-title">Show Archive in sidebar</span>
+              <span class="toggle-hint">
+                Keeps an Archive link in the sidebar for reaching archived records.
+                Turn it off to hide the link — your archived records are still kept,
+                and you can switch this back on here any time.
               </span>
             </span>
           </label>

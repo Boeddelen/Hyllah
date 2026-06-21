@@ -117,13 +117,15 @@ export const actions = {
     // Checkboxes: present in formData only when checked. Treat absent as false.
     const useDiscogsPrices = form.get('use_discogs_prices') === 'on';
     const showValueSource = form.get('show_value_source') === 'on';
+    const showArchive = form.get('show_archive') === 'on';
 
     const { error } = await supabase
       .from('users')
       .update({
         card_back_view: cardBackView,
         use_discogs_prices: useDiscogsPrices,
-        show_value_source: showValueSource
+        show_value_source: showValueSource,
+        show_archive: showArchive
       })
       .eq('id', user.id);
 
