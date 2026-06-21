@@ -518,3 +518,132 @@ html[data-colorblind] :focus-visible {
   outline-offset: 3px !important;
   box-shadow: 0 0 0 6px var(--accent-glow) !important;
 }
+
+/* ============================================================================
+   Action controls — bulk action bars (and, later, per-card action rows)
+   ----------------------------------------------------------------------------
+   Form-factor aware. A phone has no hover, so hover-led ghost buttons read as
+   faint floating text on touch — worst of all for destructive actions. These
+   controls stay restrained on desktop (where hover exists) but become solid,
+   thumb-sized, and unmistakable on touch. Defined once, used by every action
+   surface, so the look stays consistent and tweaks happen in one place.
+   ============================================================================ */
+
+/* Floating bulk action bar */
+.act-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--groove);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+.act-bar__count {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.act-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.act-bar__sep {
+  width: 1px;
+  height: 20px;
+  background: var(--groove);
+}
+
+/* Action button — restrained ghost on desktop, with a hover lift. */
+.act-btn {
+  background: none;
+  border: 1px solid var(--groove);
+  color: var(--ink-2);
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--t), border-color var(--t), background var(--t);
+}
+.act-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+  background: var(--bg-3);
+}
+
+/* Destructive: visible at rest even on desktop (red text + red border),
+   solid red on hover. Never an invisible button. */
+.act-btn.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.act-btn.danger:hover {
+  color: var(--bg);
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ── Touch devices: solid, thumb-sized, no hover to rely on ───────────────── */
+@media (pointer: coarse) {
+  .act-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+  .act-bar__count {
+    text-align: center;
+  }
+  .act-bar__sep {
+    display: none;
+  }
+  .act-bar__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .act-btn {
+    min-height: 46px;
+    font-size: 13px;
+    padding: 10px 14px;
+    white-space: normal;
+    line-height: 1.2;
+    /* Solid resting fill so each control is clearly a tappable button. */
+    background: var(--bg-3);
+    border-color: var(--ink-3);
+    color: var(--ink);
+  }
+  .act-btn.danger {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--bg);
+  }
+  /* Full-width row inside the grid (utility row up top, etc.). */
+  .act-btn.span-2 {
+    grid-column: 1 / -1;
+  }
+}

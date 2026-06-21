@@ -200,13 +200,13 @@
 </div>
 
 {#if selectMode && selectedCount > 0}
-  <div class="bulk-bar" role="region" aria-label="Bulk archive actions">
-    <div class="bulk-count">{selectedCount} selected</div>
-    <div class="bulk-actions">
-      <button class="bulk-btn" onclick={selectAllVisible}>Select all</button>
-      <span class="bulk-sep" aria-hidden="true"></span>
-      <button class="bulk-btn" onclick={bulkUnarchive}>Unarchive</button>
-      <button class="bulk-btn danger" onclick={bulkPermanentDelete}>Delete permanently</button>
+  <div class="act-bar" role="region" aria-label="Bulk archive actions">
+    <div class="act-bar__count">{selectedCount} selected</div>
+    <div class="act-bar__actions">
+      <button class="act-btn span-2" onclick={selectAllVisible}>Select all</button>
+      <span class="act-bar__sep" aria-hidden="true"></span>
+      <button class="act-btn" onclick={bulkUnarchive}>Unarchive</button>
+      <button class="act-btn danger" onclick={bulkPermanentDelete}>Delete permanently</button>
     </div>
   </div>
 {/if}
@@ -373,43 +373,8 @@
     margin: 0 auto;
   }
 
-  /* Bulk action bar */
-  .bulk-bar {
-    position: fixed;
-    left: 50%; bottom: 24px;
-    transform: translateX(-50%);
-    z-index: 50;
-    display: flex; align-items: center; gap: 16px;
-    flex-wrap: wrap; justify-content: center;
-    max-width: calc(100vw - 32px);
-    padding: 12px 16px;
-    background: var(--surface);
-    border: 1px solid var(--groove);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow);
-  }
-  .bulk-count {
-    font-family: var(--ff-mono); font-size: 11px; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--ink-2); white-space: nowrap;
-  }
-  .bulk-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .bulk-sep { width: 1px; height: 20px; background: var(--groove); }
-  .bulk-btn {
-    background: none;
-    border: 1px solid var(--groove);
-    color: var(--ink-2);
-    font-family: var(--ff-mono);
-    font-size: 10px; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 7px 12px;
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: color var(--t), border-color var(--t), background var(--t);
-  }
-  .bulk-btn:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-3); }
-  .bulk-btn.danger { color: var(--danger); }
-  .bulk-btn.danger:hover { color: var(--danger); border-color: var(--danger); background: var(--bg-3); }
+  /* Bulk action bar + buttons come from the shared .act-bar / .act-btn
+     system in app.css (form-factor aware). */
 
   @media (max-width: 640px) {
     .page { padding: 24px 20px 80px; }
