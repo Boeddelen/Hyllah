@@ -26,7 +26,8 @@
     record = null,
     onclose,
     allCollections = [],
-    currentCollectionId = null
+    currentCollectionId = null,
+    ondelete = null
   } = $props();
 
   // The browser Supabase client — provided via root layout
@@ -81,6 +82,17 @@
   let forceCreate = $state('');
 
   let isEdit = $derived(record !== null);
+
+  // Delete the record being edited. The parent owns the actual removal (and its
+  // undo toast) via the `ondelete` callback; we just confirm and hand it the
+  // record, then close. Only wired up in edit mode when a parent provides it.
+  function handleDelete() {
+    if (!record) return;
+    const label = [record.artist, record.title].filter(Boolean).join(' – ');
+    if (!confirm(`Delete "${label}"? You can undo for a few seconds.`)) return;
+    ondelete?.(record);
+    close();
+  }
   let isLinked = $derived(Boolean(discogsId));
 
   // ── Tag autocomplete ────────────────────────────────
@@ -866,6 +878,9 @@
         {/if}
 
         <footer class="modal-footer" class:hidden={showDuplicateWarning}>
+          {#if isEdit && ondelete}
+            <button type="button" class="btn danger" onclick={handleDelete} disabled={submitting}>Delete</button>
+          {/if}
           <button type="button" class="btn ghost" onclick={close} disabled={submitting}>Cancel</button>
           <button type="submit" class="btn primary" disabled={submitting || !artist.trim() || !title.trim()}>
             {submitting ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save changes' : 'Add to collection'}
@@ -1330,6 +1345,16 @@
     border-color: var(--groove);
   }
   .btn.ghost:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-3); }
+
+  /* Destructive footer action — sits on the left, visible at rest. */
+  .btn.danger {
+    background: transparent;
+    color: var(--danger);
+    border-color: var(--danger);
+    margin-right: auto;
+  }
+  .btn.danger:hover:not(:disabled) { background: var(--danger); color: var(--bg); }
+  .btn.danger:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .duplicate-warning {
     margin-top: 18px;

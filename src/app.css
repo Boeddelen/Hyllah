@@ -583,10 +583,14 @@ html[data-colorblind] :focus-visible {
   white-space: nowrap;
   transition: color var(--t), border-color var(--t), background var(--t);
 }
-.act-btn:hover {
+.act-btn:hover:not(:disabled) {
   color: var(--ink);
   border-color: var(--ink-3);
   background: var(--bg-3);
+}
+.act-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Destructive: visible at rest even on desktop (red text + red border),
@@ -595,7 +599,7 @@ html[data-colorblind] :focus-visible {
   color: var(--danger);
   border-color: var(--danger);
 }
-.act-btn.danger:hover {
+.act-btn.danger:hover:not(:disabled) {
   color: var(--bg);
   background: var(--danger);
   border-color: var(--danger);

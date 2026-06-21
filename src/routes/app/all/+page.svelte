@@ -75,6 +75,11 @@
   let selectedIds = $state(new Set());
   let pendingBulkDelete = $state(null);
   const selectedCount = $derived(selectedIds.size);
+  // A bulk privacy action is only enabled when at least one selected record
+  // is in the opposite state — otherwise the button would do nothing.
+  const selectedRecords = $derived(records.filter((r) => selectedIds.has(r.id)));
+  const canMakePublic = $derived(selectedRecords.some((r) => !r.is_public_record));
+  const canMakePrivate = $derived(selectedRecords.some((r) => r.is_public_record));
 
   let visibleRecords = $derived.by(() => {
     let list = records;
@@ -568,10 +573,6 @@
                   if (confirm(`Archive "${record.artist} – ${record.title}"?`)) archive(record);
                 }}
               >Archive</button>
-              <button
-                class="back-btn delete-btn"
-                onclick={(e) => { e.stopPropagation(); softDelete(record); }}
-              >Delete</button>
             </div>
           </div>
         </div>
@@ -586,6 +587,7 @@
   onclose={onModalClose}
   allCollections={allCollections}
   currentCollectionId={null}
+  ondelete={softDelete}
 />
 
 {#if selectMode && selectedCount > 0}
@@ -594,8 +596,8 @@
     <div class="act-bar__actions">
       <button class="act-btn span-2" onclick={selectAllVisible}>Select all</button>
       <span class="act-bar__sep" aria-hidden="true"></span>
-      <button class="act-btn" onclick={() => bulkSetPrivacy(true)}>Make public</button>
-      <button class="act-btn" onclick={() => bulkSetPrivacy(false)}>Make private</button>
+      <button class="act-btn" onclick={() => bulkSetPrivacy(true)} disabled={!canMakePublic}>Make public</button>
+      <button class="act-btn" onclick={() => bulkSetPrivacy(false)} disabled={!canMakePrivate}>Make private</button>
       <button class="act-btn" onclick={bulkArchive}>Archive</button>
       <button class="act-btn danger" onclick={bulkDelete}>Delete</button>
     </div>
@@ -886,10 +888,7 @@
   .privacy-btn.private { color: var(--danger); }
   .privacy-btn.private:hover { background: rgba(198, 74, 74, 0.08); }
   .privacy-icon { font-size: 11px; }
-  .archive-btn { border-right: 1px solid var(--groove); }
   .archive-btn:hover { color: var(--ink); }
-  .delete-btn { color: var(--ink-3); }
-  .delete-btn:hover { color: var(--danger); background: rgba(198, 74, 74, 0.08); }
 
   @media (max-width: 840px) {
     .page { padding: 24px 18px 60px; }

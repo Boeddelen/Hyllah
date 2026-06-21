@@ -633,15 +633,6 @@
               >
                 Archive
               </button>
-              <button
-                class="back-btn delete-btn"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  softDelete(record);
-                }}
-              >
-                Delete
-              </button>
             </div>
           </div>
         </div>
@@ -656,6 +647,7 @@
   onclose={onModalClose}
   allCollections={data.allCollections ?? []}
   currentCollectionId={collection.id}
+  ondelete={softDelete}
 />
 
 {#if pendingDelete}
@@ -1028,8 +1020,6 @@
   .back-btn:hover { background: var(--bg-3); }
   .edit-btn:hover { color: var(--accent); }
   .archive-btn:hover { color: var(--ink); }
-  .delete-btn { color: var(--ink-3); }
-  .delete-btn:hover { color: var(--danger); background: rgba(198, 74, 74, 0.08); }
   .unlink-btn { color: var(--ink-3); }
   .unlink-btn:hover { color: var(--ink); }
   .privacy-btn {
@@ -1047,7 +1037,6 @@
   }
   .edit-btn { border-right: 1px solid var(--groove); }
   .privacy-btn { border-right: 1px solid var(--groove); }
-  .archive-btn { border-right: 1px solid var(--groove); }
   .unlink-btn { border-right: 1px solid var(--groove); }
 
   @media (max-width: 840px) {
