@@ -86,6 +86,13 @@
         <div class="field">
           <label>Icon</label>
           <div class="icon-grid">
+            <button
+              type="button"
+              class="icon-btn icon-btn-none"
+              class:active={createIcon === ''}
+              onclick={() => (createIcon = '')}
+              aria-label="No icon"
+            >None</button>
             {#each COLLECTION_ICONS as opt}
               <button
                 type="button"
@@ -186,6 +193,13 @@
             <div class="field">
               <label>Icon</label>
               <div class="icon-grid">
+                <button
+                  type="button"
+                  class="icon-btn icon-btn-none"
+                  class:active={editIcon === ''}
+                  onclick={() => (editIcon = '')}
+                  aria-label="No icon"
+                >None</button>
                 {#each COLLECTION_ICONS as opt}
                   <button
                     type="button"
@@ -451,6 +465,15 @@
   .icon-btn.active {
     background: var(--accent-glow);
     border-color: var(--accent);
+  }
+
+  .icon-btn-none {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-2);
   }
 
   .form-actions {

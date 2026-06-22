@@ -49,6 +49,13 @@
       <div class="field">
         <label>Pick an icon</label>
         <div class="icon-grid">
+          <button
+            type="button"
+            class="icon-btn icon-btn-none"
+            class:active={icon === ''}
+            onclick={() => (icon = '')}
+            aria-label="No icon"
+          >None</button>
           {#each COLLECTION_ICONS as opt}
             <button
               type="button"
@@ -181,6 +188,15 @@
     background: var(--accent-glow);
     border-color: var(--accent);
     transform: scale(1.05);
+  }
+
+  .icon-btn-none {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-2);
   }
 
   .error {
