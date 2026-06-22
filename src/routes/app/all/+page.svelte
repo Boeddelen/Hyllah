@@ -125,6 +125,12 @@
     modalOpen = true;
   }
 
+  // Add a new record from the vault — open the modal with no record (add mode).
+  function openAdd() {
+    editingRecord = null;
+    modalOpen = true;
+  }
+
   function onModalClose() {
     modalOpen = false;
     editingRecord = null;
@@ -337,11 +343,16 @@
       <div class="eyebrow">Your vault</div>
       <h1>{visibleRecords.length} {visibleRecords.length === 1 ? 'record' : 'records'}.</h1>
     </div>
-    {#if visibleRecords.length > 0}
-      <button class="select-toggle" class:active={selectMode} onclick={toggleSelectMode}>
-        {selectMode ? 'Cancel' : 'Select'}
-      </button>
-    {/if}
+    <div class="header-actions">
+      {#if allCollections.length > 0 && !selectMode}
+        <button class="add-btn" onclick={openAdd}>+ Add record</button>
+      {/if}
+      {#if visibleRecords.length > 0}
+        <button class="select-toggle" class:active={selectMode} onclick={toggleSelectMode}>
+          {selectMode ? 'Cancel' : 'Select'}
+        </button>
+      {/if}
+    </div>
   </header>
 
   <FilterBar
@@ -361,7 +372,7 @@
         <line x1="10" y1="36" x2="46" y2="36" />
         <line x1="10" y1="28" x2="46" y2="28" />
       </svg>
-      <p>Your vault is empty. Add records to a collection to see them here.</p>
+      <p>Your vault is empty — add your first record with <strong>+ Add record</strong> above.</p>
     </div>
   {:else if visibleRecords.length === 0}
     <div class="empty-state">
@@ -647,6 +658,28 @@
   }
   .select-toggle:hover { color: var(--ink); border-color: var(--ink-3); }
   .select-toggle.active { color: var(--accent); border-color: var(--accent); }
+  .header-actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .add-btn {
+    margin-top: 6px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: var(--bg);
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: filter var(--t);
+  }
+  .add-btn:hover { filter: brightness(1.08); }
   .eyebrow {
     font-family: var(--ff-mono); font-size: 11px; font-weight: 500;
     letter-spacing: 0.18em; text-transform: uppercase;

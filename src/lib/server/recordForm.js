@@ -189,3 +189,21 @@ export function parseCollections(form, primaryCollectionId = null) {
   // filter(Boolean) drops a null/empty primary (the no-current-collection case).
   return Array.from(new Set([primaryCollectionId, ...ids].filter(Boolean)));
 }
+
+/**
+ * Find up to 3 of the user's existing records matching an artist + title
+ * (case-insensitive), excluding pending-deletes. Used to warn before adding a
+ * likely duplicate. Shared by the collection and vault (All Records) create
+ * actions so both behave identically.
+ */
+export async function findDuplicates(supabase, userId, artist, title) {
+  const { data } = await supabase
+    .from('records')
+    .select('id, artist, title, format, year, collection_id, is_archived')
+    .eq('user_id', userId)
+    .eq('is_pending_delete', false)
+    .ilike('artist', artist)
+    .ilike('title', title)
+    .limit(3);
+  return data ?? [];
+}

@@ -9,7 +9,7 @@ import {
   ensureRecordInCollection,
   removeRecordFromCollection
 } from '$lib/server/db';
-import { buildRecordFromForm, parseTracklist, parseCollections } from '$lib/server/recordForm.js';
+import { buildRecordFromForm, parseTracklist, parseCollections, findDuplicates } from '$lib/server/recordForm.js';
 
 /** Parse a comma-separated URL param into a clean string array. */
 function arrParam(url, key) {
@@ -79,17 +79,6 @@ function str(v) {
  * Look for potential duplicates: same artist + title in this user's collections.
  * Returns at most 3 matches.
  */
-async function findDuplicates(supabase, userId, artist, title) {
-  const { data } = await supabase
-    .from('records')
-    .select('id, artist, title, format, year, collection_id, is_archived')
-    .eq('user_id', userId)
-    .eq('is_pending_delete', false)
-    .ilike('artist', artist)
-    .ilike('title', title)
-    .limit(3);
-  return data ?? [];
-}
 
 // ─── Form actions ──────────────────────────────────────────────────────
 

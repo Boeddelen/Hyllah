@@ -185,8 +185,16 @@
       imageUrl = '';
       prices = null;
       tracks = [];
-      // New record: starts in the current collection only
-      memberCollectionIds = new Set(currentCollectionId ? [currentCollectionId] : []);
+      // New record. With a current collection (collection page) start there.
+      // From the vault (no current collection) preselect the only collection if
+      // there's just one; with several, the user picks in the modal.
+      if (currentCollectionId) {
+        memberCollectionIds = new Set([currentCollectionId]);
+      } else if (allCollections.length === 1) {
+        memberCollectionIds = new Set([allCollections[0].id]);
+      } else {
+        memberCollectionIds = new Set();
+      }
     }
     priceWarning = '';
     submitting = false;
@@ -557,7 +565,7 @@
         <!-- Collection memberships are only sent when the user actually changed them,
              so the dual-write doesn't silently re-shuffle a record's collections
              on routine edits. -->
-        <input type="hidden" name="collections" value={membershipsDirty ? Array.from(memberCollectionIds).join(',') : ''} />
+        <input type="hidden" name="collections" value={(membershipsDirty || !currentCollectionId) ? Array.from(memberCollectionIds).join(',') : ''} />
 
         <!-- ── Discogs panel ──────────────────────────── -->
         <div class="discogs-panel">
@@ -824,9 +832,13 @@
               {/if}
             </div>
             <p class="memberships-hint">
-              This record can live in more than one collection. Toggle below to add or remove
-              it from your other collections. {#if currentCollectionId}The current collection is locked here —
-              use <em>"Remove from this collection"</em> on the card itself for that.{/if}
+              {#if !isEdit && !currentCollectionId}
+                Choose at least one collection to add this record to — it can live in more than one.
+              {:else}
+                This record can live in more than one collection. Toggle below to add or remove
+                it from your other collections. {#if currentCollectionId}The current collection is locked here —
+                use <em>"Remove from this collection"</em> on the card itself for that.{/if}
+              {/if}
             </p>
             <div class="memberships-list">
               {#each allCollections as coll}
@@ -882,7 +894,7 @@
             <button type="button" class="btn danger" onclick={handleDelete} disabled={submitting}>Delete</button>
           {/if}
           <button type="button" class="btn ghost" onclick={close} disabled={submitting}>Cancel</button>
-          <button type="submit" class="btn primary" disabled={submitting || !artist.trim() || !title.trim()}>
+          <button type="submit" class="btn primary" disabled={submitting || !artist.trim() || !title.trim() || (!isEdit && !currentCollectionId && memberCollectionIds.size === 0)}>
             {submitting ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save changes' : 'Add to collection'}
           </button>
         </footer>

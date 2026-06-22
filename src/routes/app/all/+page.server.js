@@ -6,7 +6,7 @@ import {
   loadVaultFacets,
   setRecordCollections
 } from '$lib/server/db';
-import { buildRecordFromForm, parseTracklist, parseCollections } from '$lib/server/recordForm.js';
+import { buildRecordFromForm, parseTracklist, parseCollections, findDuplicates } from '$lib/server/recordForm.js';
 
 function arrParam(url, key) {
   const raw = url.searchParams.get(key);
@@ -97,6 +97,56 @@ export const load = async ({ parent, url, locals: { supabase } }) => {
 
 /** @type {import('./$types').Actions} */
 export const actions = {
+  // Add a brand-new record from the vault view. There's no "current" collection
+  // here, so the target collection(s) come entirely from the modal's picker —
+  // at least one is required. Mirrors the collection page's create otherwise.
+  create: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+
+    const collections = parseCollections(form, null);
+    if (!collections || collections.length === 0) {
+      return fail(400, { action: 'create', error: 'Choose at least one collection for this record.' });
+    }
+    const primaryCollectionId = collections[0];
+
+    const built = buildRecordFromForm(form, user.id, primaryCollectionId);
+    if (built.error) return fail(400, { action: 'create', error: built.error });
+
+    // Warn before adding a likely duplicate, unless the user chose "Add anyway".
+    const forceCreate = form.get('force') === 'true';
+    if (!forceCreate) {
+      const dupes = await findDuplicates(supabase, user.id, built.record.artist, built.record.title);
+      if (dupes.length > 0) {
+        return fail(409, { action: 'create', duplicates: dupes, formData: built.record });
+      }
+    }
+
+    const { data, error: dbError } = await supabase
+      .from('records')
+      .insert(built.record)
+      .select()
+      .single();
+    if (dbError) return fail(500, { action: 'create', error: dbError.message });
+
+    // Set full collection membership (also syncs the legacy collection_id to the
+    // primary). Enforces >= 1 collection server-side as a backstop.
+    const res = await setRecordCollections(supabase, user.id, data.id, collections);
+    if (!res.ok) console.error('setRecordCollections failed (non-fatal):', res.error);
+
+    // Persist tracklist if the modal supplied one.
+    const tracklist = parseTracklist(form);
+    if (tracklist && tracklist.length > 0) {
+      const tracks = tracklist.map((t) => ({ ...t, record_id: data.id }));
+      const { error: tracksError } = await supabase.from('tracks').insert(tracks);
+      if (tracksError) console.error('Track insert failed:', tracksError);
+    }
+
+    return { action: 'create', success: true, record: data };
+  },
+
   // ── Bulk actions (operate on a validated set of the user's own records) ──
   bulkArchive: async ({ request, locals: { safeGetSession, supabase } }) => {
     const { user } = await safeGetSession();
