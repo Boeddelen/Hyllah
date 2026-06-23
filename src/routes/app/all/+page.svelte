@@ -1,5 +1,6 @@
 <script>
   import { goto, invalidateAll } from '$app/navigation';
+  import { deserialize } from '$app/forms';
   import { FORMATS, CONDITIONS, shortCondition } from '$lib/formats.js';
   import { formatCurrency } from '$lib/currency.js';
   import { currentValueOf, valueOf, valueSourceLabel } from '$lib/valuation.js';
@@ -244,6 +245,70 @@
     fd.append('ids', ids.join(','));
     for (const [k, v] of Object.entries(extra)) fd.append(k, v);
     return fetch(`?/${action}`, { method: 'POST', body: fd });
+  }
+
+  // ── Bulk add/remove to a collection ──────────────────
+  let pickerMode = $state(null); // null | 'add' | 'remove'
+  let pickerBusy = $state(false);
+  let resultMsg = $state('');
+  let resultTimer;
+
+  function openCollectionPicker(mode) {
+    if (allCollections.length === 0) return;
+    pickerMode = mode;
+  }
+  function closePicker() {
+    pickerMode = null;
+  }
+  function scheduleResultClear() {
+    clearTimeout(resultTimer);
+    resultTimer = setTimeout(() => { resultMsg = ''; }, 5000);
+  }
+
+  async function applyCollectionAction(collection) {
+    if (pickerBusy) return;
+    const ids = Array.from(selectedIds);
+    if (!ids.length) { closePicker(); return; }
+    const mode = pickerMode;
+    const action = mode === 'add' ? 'bulkAddToCollection' : 'bulkRemoveFromCollection';
+    pickerBusy = true;
+    try {
+      const fd = new FormData();
+      fd.append('ids', ids.join(','));
+      fd.append('collectionId', collection.id);
+      // x-sveltekit-action lets us read the action's JSON result (the counts)
+      // instead of a redirect.
+      const res = await fetch(`?/${action}`, {
+        method: 'POST',
+        headers: { 'x-sveltekit-action': 'true' },
+        body: fd
+      });
+      const result = deserialize(await res.text());
+      if (result.type !== 'success') throw new Error('action failed');
+      const d = result.data ?? {};
+      if (mode === 'add') {
+        const n = d.added ?? 0;
+        resultMsg = n === 0
+          ? `Those records were already in "${collection.name}".`
+          : `Added ${n} record${n === 1 ? '' : 's'} to "${collection.name}".`;
+      } else {
+        const removed = d.removed ?? 0;
+        const skipped = d.skipped ?? 0;
+        resultMsg = `Removed ${removed} record${removed === 1 ? '' : 's'} from "${collection.name}".`
+          + (skipped ? ` ${skipped} kept — they'd be left with no collection.` : '');
+      }
+      closePicker();
+      exitSelect();
+      await invalidateAll();
+      scheduleResultClear();
+    } catch (err) {
+      console.error(`${action} failed`, err);
+      resultMsg = 'Something went wrong — please try again.';
+      closePicker();
+      scheduleResultClear();
+    } finally {
+      pickerBusy = false;
+    }
   }
 
   async function bulkArchive() {
@@ -609,6 +674,8 @@
       <span class="act-bar__sep" aria-hidden="true"></span>
       <button class="act-btn" onclick={() => bulkSetPrivacy(true)} disabled={!canMakePublic}>Make public</button>
       <button class="act-btn" onclick={() => bulkSetPrivacy(false)} disabled={!canMakePrivate}>Make private</button>
+      <button class="act-btn" onclick={() => openCollectionPicker('add')}>Add to collection</button>
+      <button class="act-btn" onclick={() => openCollectionPicker('remove')}>Remove from collection</button>
       <button class="act-btn" onclick={bulkArchive}>Archive</button>
       <button class="act-btn danger" onclick={bulkDelete}>Delete</button>
     </div>
@@ -629,6 +696,42 @@
     onundo={undoBulkDelete}
     onexpire={commitBulkDelete}
   />
+{/if}
+
+{#if pickerMode}
+  <div
+    class="picker-backdrop"
+    role="presentation"
+    onclick={closePicker}
+    onkeydown={(e) => e.key === 'Escape' && closePicker()}
+  >
+    <div
+      class="picker"
+      role="dialog"
+      aria-modal="true"
+      aria-label={pickerMode === 'add' ? 'Add to collection' : 'Remove from collection'}
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div class="picker-head">
+        <h3>{pickerMode === 'add' ? 'Add to collection' : 'Remove from collection'}</h3>
+        <p>{selectedCount} record{selectedCount === 1 ? '' : 's'} selected</p>
+      </div>
+      <div class="picker-list">
+        {#each allCollections as collection (collection.id)}
+          <button class="picker-row" onclick={() => applyCollectionAction(collection)} disabled={pickerBusy}>
+            {#if collection.icon}<span class="picker-icon">{collection.icon}</span>{/if}
+            <span class="picker-name">{collection.name}</span>
+          </button>
+        {/each}
+      </div>
+      <button class="picker-cancel" onclick={closePicker} disabled={pickerBusy}>Cancel</button>
+    </div>
+  </div>
+{/if}
+
+{#if resultMsg}
+  <div class="result-toast" role="status">{resultMsg}</div>
 {/if}
 
 <style>
@@ -927,5 +1030,117 @@
     .page { padding: 24px 18px 60px; }
     .record-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
     .record-card { height: 380px; }
+  }
+
+  /* Bulk add/remove-to-collection picker */
+  .picker-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: var(--overlay);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .picker {
+    width: 100%;
+    max-width: 380px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .picker-head {
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--groove);
+  }
+  .picker-head h3 {
+    margin: 0 0 4px;
+    font-family: var(--ff-display);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .picker-head p {
+    margin: 0;
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
+  }
+  .picker-list {
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    padding: 12px;
+    cursor: pointer;
+    color: var(--ink);
+    font-family: var(--ff-display);
+    font-size: 15px;
+    transition: background var(--t), border-color var(--t);
+  }
+  .picker-row:hover:not(:disabled) {
+    background: var(--bg-3);
+    border-color: var(--groove);
+  }
+  .picker-row:disabled { opacity: 0.5; cursor: default; }
+  .picker-icon { font-size: 18px; flex-shrink: 0; }
+  .picker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .picker-cancel {
+    margin: 8px;
+    padding: 12px;
+    background: none;
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    color: var(--ink-2);
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color var(--t), border-color var(--t);
+  }
+  .picker-cancel:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-3); }
+
+  /* Result snackbar after a bulk collection change */
+  .result-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 55;
+    max-width: calc(100vw - 32px);
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    color: var(--ink);
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-align: center;
+  }
+  @media (pointer: coarse) {
+    .result-toast { left: 12px; right: 12px; bottom: 12px; transform: none; max-width: none; }
   }
 </style>

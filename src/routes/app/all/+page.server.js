@@ -182,6 +182,111 @@ export const actions = {
     return { action: 'bulkSetPrivacy', success: true, count: ids.length, isPublic };
   },
 
+  // Add the selected records to a collection. Records already in it are skipped
+  // (no duplicate junction rows); the primary collection_id is left untouched.
+  bulkAddToCollection: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const form = await request.formData();
+    const ids = parseIds(form);
+    const collectionId = (form.get('collectionId') ?? '').toString().trim();
+    if (!ids.length) return fail(400, { action: 'bulkAddToCollection', error: 'No records selected' });
+    if (!/^[0-9a-f-]{36}$/i.test(collectionId)) return fail(400, { action: 'bulkAddToCollection', error: 'No collection chosen' });
+
+    // The collection must belong to the user.
+    const { data: coll } = await supabase
+      .from('collections').select('id').eq('id', collectionId).eq('user_id', user.id).maybeSingle();
+    if (!coll) return fail(403, { action: 'bulkAddToCollection', error: 'Collection not found' });
+
+    // Limit to the user's own records.
+    const { data: ownedRecords } = await supabase
+      .from('records').select('id').eq('user_id', user.id).in('id', ids);
+    const ownedIds = (ownedRecords ?? []).map((r) => r.id);
+    if (!ownedIds.length) return fail(400, { action: 'bulkAddToCollection', error: 'No matching records' });
+
+    // Only insert rows for records not already in the collection.
+    const { data: existing } = await supabase
+      .from('record_collections').select('record_id').eq('collection_id', collectionId).in('record_id', ownedIds);
+    const already = new Set((existing ?? []).map((r) => r.record_id));
+    const toAdd = ownedIds.filter((id) => !already.has(id));
+
+    if (toAdd.length) {
+      const rows = toAdd.map((rid) => ({ record_id: rid, collection_id: collectionId }));
+      const { error } = await supabase.from('record_collections').insert(rows);
+      if (error) return fail(500, { action: 'bulkAddToCollection', error: error.message });
+    }
+    return { action: 'bulkAddToCollection', success: true, added: toAdd.length };
+  },
+
+  // Remove the selected records from a collection. A record that would be left
+  // with no collection is kept (reported as skipped). Where the removed
+  // collection was a record's primary, the legacy collection_id is re-pointed
+  // to a remaining collection.
+  bulkRemoveFromCollection: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+    const form = await request.formData();
+    const ids = parseIds(form);
+    const collectionId = (form.get('collectionId') ?? '').toString().trim();
+    if (!ids.length) return fail(400, { action: 'bulkRemoveFromCollection', error: 'No records selected' });
+    if (!/^[0-9a-f-]{36}$/i.test(collectionId)) return fail(400, { action: 'bulkRemoveFromCollection', error: 'No collection chosen' });
+
+    const { data: coll } = await supabase
+      .from('collections').select('id').eq('id', collectionId).eq('user_id', user.id).maybeSingle();
+    if (!coll) return fail(403, { action: 'bulkRemoveFromCollection', error: 'Collection not found' });
+
+    // Owned records with their primary collection_id.
+    const { data: ownedRecords } = await supabase
+      .from('records').select('id, collection_id').eq('user_id', user.id).in('id', ids);
+    const owned = ownedRecords ?? [];
+    if (!owned.length) return fail(400, { action: 'bulkRemoveFromCollection', error: 'No matching records' });
+    const ownedIds = owned.map((r) => r.id);
+    const primaryOf = new Map(owned.map((r) => [r.id, r.collection_id]));
+
+    // All current memberships for these records.
+    const { data: memberships } = await supabase
+      .from('record_collections').select('record_id, collection_id').in('record_id', ownedIds);
+    const setOf = new Map();
+    for (const m of memberships ?? []) {
+      if (!setOf.has(m.record_id)) setOf.set(m.record_id, new Set());
+      setOf.get(m.record_id).add(m.collection_id);
+    }
+
+    // Removable = in this collection AND has another collection to fall back to.
+    const removable = [];
+    let skipped = 0;
+    for (const id of ownedIds) {
+      const s = setOf.get(id);
+      if (!s || !s.has(collectionId)) continue; // not in the collection
+      if (s.size <= 1) { skipped++; continue; } // only collection — keep it
+      removable.push(id);
+    }
+
+    if (removable.length) {
+      const { error: delErr } = await supabase
+        .from('record_collections').delete().eq('collection_id', collectionId).in('record_id', removable);
+      if (delErr) return fail(500, { action: 'bulkRemoveFromCollection', error: delErr.message });
+
+      // Re-point primaries that pointed at the removed collection. Group by the
+      // new primary so it's a handful of updates, not one per record.
+      const byNewPrimary = new Map();
+      for (const id of removable) {
+        if (primaryOf.get(id) !== collectionId) continue;
+        const newPrimary = [...setOf.get(id)].find((c) => c !== collectionId);
+        if (!newPrimary) continue;
+        if (!byNewPrimary.has(newPrimary)) byNewPrimary.set(newPrimary, []);
+        byNewPrimary.get(newPrimary).push(id);
+      }
+      for (const [newPrimary, recIds] of byNewPrimary) {
+        const { error: upErr } = await supabase
+          .from('records').update({ collection_id: newPrimary }).in('id', recIds).eq('user_id', user.id);
+        if (upErr) return fail(500, { action: 'bulkRemoveFromCollection', error: upErr.message });
+      }
+    }
+
+    return { action: 'bulkRemoveFromCollection', success: true, removed: removable.length, skipped };
+  },
+
   bulkSoftDelete: async ({ request, locals: { safeGetSession, supabase } }) => {
     const { user } = await safeGetSession();
     if (!user) throw redirect(303, '/login');
