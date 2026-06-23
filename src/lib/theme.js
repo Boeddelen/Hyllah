@@ -47,7 +47,7 @@ export const THEMES = [
 ];
 
 /** Valid theme IDs for validation. */
-const VALID_THEMES = new Set(THEMES.map((t) => t.id));
+export const VALID_THEMES = new Set(THEMES.map((t) => t.id));
 
 // ── Getters ──────────────────────────────────────────────────────────
 
@@ -66,6 +66,46 @@ export function getMode() {
 // Legacy compat — old code calls getTheme() expecting 'dark' | 'light'
 export function getTheme() {
   return getMode();
+}
+
+/**
+ * Raw stored values — null when the user has never explicitly chosen (unlike
+ * getThemeId/getMode, which fall back to defaults). Used to distinguish "no
+ * choice yet" from "chose the default" when syncing to the account.
+ * @returns {string | null}
+ */
+export function getStoredThemeId() {
+  if (typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(THEME_KEY); } catch { return null; }
+}
+
+/** @returns {string | null} */
+export function getStoredMode() {
+  if (typeof localStorage === 'undefined') return null;
+  try { return localStorage.getItem(MODE_KEY); } catch { return null; }
+}
+
+/**
+ * Persist theme/mode to the signed-in user's account (best-effort) so it
+ * follows them to other browsers. Pass only what changed. Safe when logged
+ * out — the endpoint rejects and we ignore it.
+ * @param {{ themeId?: string, mode?: string }} [choice]
+ */
+export async function saveThemeToAccount({ themeId, mode } = {}) {
+  if (typeof fetch === 'undefined') return;
+  const payload = {};
+  if (themeId) payload.themeId = themeId;
+  if (mode) payload.mode = mode;
+  if (Object.keys(payload).length === 0) return;
+  try {
+    await fetch('/api/theme', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    /* best-effort — the account simply stays as-is until the next change */
+  }
 }
 
 // ── Setters ──────────────────────────────────────────────────────────

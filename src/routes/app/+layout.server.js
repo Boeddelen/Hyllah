@@ -47,6 +47,11 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
     rates,
     displayCurrency,
     pendingRequestCount,
-    archivedCount
+    archivedCount,
+    // The user's account-saved theme (null parts mean "not chosen yet").
+    serverTheme: {
+      themeId: profile?.app_theme ?? null,
+      mode: profile?.app_mode ?? null
+    }
   };
 };

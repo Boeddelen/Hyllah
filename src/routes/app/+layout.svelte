@@ -1,10 +1,29 @@
 <script>
   import { page } from '$app/stores';
   import { enhance } from '$app/forms';
+  import { onMount } from 'svelte';
+  import { setThemeId, setMode, getStoredThemeId, getStoredMode, saveThemeToAccount } from '$lib/theme.js';
 
   let { data, children } = $props();
 
   let sidebarOpen = $state(false);
+
+  // Theme persistence across browsers. The account is the source of truth: on
+  // entry, apply the account theme (covers a fresh browser / incognito, which
+  // has no localStorage yet). If the account has nothing saved but this browser
+  // does, adopt this browser's choice into the account so others pick it up.
+  onMount(() => {
+    const st = data.serverTheme;
+    if (!st) return;
+    if (st.themeId) {
+      setThemeId(st.themeId);
+      if (st.mode) setMode(st.mode);
+    } else {
+      const themeId = getStoredThemeId();
+      const mode = getStoredMode();
+      if (themeId || mode) saveThemeToAccount({ themeId, mode });
+    }
+  });
 
   // Find active collection from URL
   let activeCollectionId = $derived($page.params.collectionId ?? null);

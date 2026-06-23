@@ -5,7 +5,7 @@
   // discogs.com. Plain form POST lets the browser handle the redirect natively.
 
   import { onMount, onDestroy } from 'svelte';
-  import { THEMES, getThemeId, setThemeId, getMode, setMode, getA11ySettings, setA11y } from '$lib/theme.js';
+  import { THEMES, getThemeId, setThemeId, getMode, setMode, getA11ySettings, setA11y, saveThemeToAccount } from '$lib/theme.js';
   import { SUPPORTED_CURRENCIES, CURRENCY_LABELS } from '$lib/currency.js';
   import AvatarUpload from '$lib/components/AvatarUpload.svelte';
 
@@ -92,10 +92,12 @@
   function switchTheme(themeId) {
     currentTheme = themeId;
     setThemeId(themeId);
+    saveThemeToAccount({ themeId });
   }
   function switchMode(mode) {
     currentMode = mode;
     setMode(mode);
+    saveThemeToAccount({ mode });
   }
 
   // ── Avatar actions ─────────────────────────────────────────
