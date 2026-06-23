@@ -77,6 +77,7 @@
             <a href="/login" class="connect-btn">Sign in to connect</a>
           {:else if friendStatus === 'friends'}
             <span class="friend-state">✓ Friends</span>
+            <a href="/app/messages/{user.id}" class="connect-btn secondary">Message</a>
           {:else if friendStatus === 'pending_sent'}
             <span class="friend-state muted">Request sent</span>
           {:else if friendStatus === 'pending_received'}
@@ -288,6 +289,13 @@
   }
   .connect-btn:hover:not(:disabled) { opacity: 0.88; }
   .connect-btn:disabled { opacity: 0.5; cursor: default; }
+  .connect-btn.secondary {
+    background: none;
+    border: 1px solid var(--groove);
+    color: var(--ink-2);
+    opacity: 1;
+  }
+  .connect-btn.secondary:hover { border-color: var(--ink-3); color: var(--ink); }
 
   .friend-state {
     font-family: var(--ff-mono);

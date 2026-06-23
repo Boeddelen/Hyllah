@@ -1,6 +1,5 @@
 <script>
   import { page } from '$app/stores';
-  import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
   import { setThemeId, setMode, getStoredThemeId, getStoredMode, saveThemeToAccount } from '$lib/theme.js';
 
@@ -111,6 +110,17 @@
             <span class="nav-badge">{data.pendingRequestCount}</span>
           {/if}
         </a>
+        <a
+          href="/app/messages"
+          class="nav-item"
+          class:active={isActive('/app/messages')}
+          onclick={() => (sidebarOpen = false)}
+        >
+          <span class="nav-text">Messages</span>
+          {#if (data.unreadMessageCount ?? 0) > 0}
+            <span class="nav-badge">{data.unreadMessageCount}</span>
+          {/if}
+        </a>
         {#if data.profile?.show_archive !== false}
           <a
             href="/app/archived"
@@ -156,7 +166,7 @@
         </div>
         <div class="user-email">{data.user.email}</div>
       </div>
-      <form method="POST" action="/app/signout" use:enhance>
+      <form method="POST" action="/app/signout">
         <button type="submit" class="sign-out-btn">Sign out</button>
       </form>
     </div>
