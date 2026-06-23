@@ -53,7 +53,7 @@
       <div class="trust-row">
         <span>No passwords</span>
         <span class="dot">·</span>
-        <span>EU-hosted</span>
+        <span>Hosted in Europe</span>
         <span class="dot">·</span>
         <span>Open source</span>
         <span class="dot">·</span>
@@ -70,10 +70,10 @@
       <div class="feature-grid">
         <div class="feature">
           <div class="feature-num">01</div>
-          <h3>Live Discogs prices</h3>
+          <h3>Live MusicBrainz data</h3>
           <p>
-            Search the Discogs database, auto-fill metadata, and see live market prices for every
-            condition grade — without leaving your shelf.
+            Search the MusicBrainz database, auto-fill metadata, and experience the vast library
+            — without leaving your shelf.
           </p>
         </div>
 
@@ -81,8 +81,8 @@
           <div class="feature-num">02</div>
           <h3>Multiple collections</h3>
           <p>
-            Keep "For Sale", "Personal", "Wishlist", or "Dad's records" separate. Each one gets its
-            own name, icon, and view.
+            Keep "For Sale", "Personal", "Wishlist", or "Guilty pleasures" separate. Each one gets its
+            own name, icon, and view. Private or public, is up to you of course.
           </p>
         </div>
 
@@ -90,8 +90,7 @@
           <div class="feature-num">03</div>
           <h3>Your data is yours</h3>
           <p>
-            Export to JSON anytime. Self-host the whole app on your own server with one Docker
-            command. Delete your account and we forget you.
+            Export all your data to JSON anytime. Delete your account and we forget you.
           </p>
         </div>
 
@@ -108,7 +107,7 @@
           <div class="feature-num">05</div>
           <h3>GDPR clean</h3>
           <p>
-            Built in Norway, hosted in Frankfurt. Magic-link login means we never store your password
+            Built in Norway, hosted in Switzerland. Magic-link login means we never store your password
             because there isn't one. No tracking cookies.
           </p>
         </div>
@@ -117,8 +116,8 @@
           <div class="feature-num">06</div>
           <h3>Free</h3>
           <p>
-            No tier, no upsell, no "premium". If you find it useful and want to chip in, there's a
-            tip jar. If you don't, that's fine too.
+            Everyone has to start somewhere. We offer a free tier for those that find keeping their inventory is useful.
+            The pro tier are for the true collectors out there!
           </p>
         </div>
       </div>

@@ -69,7 +69,7 @@
     }
 
     // Success — Supabase sets the session; redirect to app
-    window.location.href = '/app';
+    window.location.href = '/app/all';
   }
 
   // ── Resend cooldown ──────────────────────────────

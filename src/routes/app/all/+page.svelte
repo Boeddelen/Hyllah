@@ -699,19 +699,12 @@
 {/if}
 
 {#if pickerMode}
-  <div
-    class="picker-backdrop"
-    role="presentation"
-    onclick={closePicker}
-    onkeydown={(e) => e.key === 'Escape' && closePicker()}
-  >
+  <div class="picker-backdrop">
     <div
       class="picker"
       role="dialog"
       aria-modal="true"
       aria-label={pickerMode === 'add' ? 'Add to collection' : 'Remove from collection'}
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
     >
       <div class="picker-head">
         <h3>{pickerMode === 'add' ? 'Add to collection' : 'Remove from collection'}</h3>
