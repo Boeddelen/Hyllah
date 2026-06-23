@@ -1,6 +1,5 @@
 <script>
   import { page } from '$app/stores';
-  import { enhance } from '$app/forms';
   import { onMount } from 'svelte';
   import { setThemeId, setMode, getStoredThemeId, getStoredMode, saveThemeToAccount } from '$lib/theme.js';
 
@@ -156,7 +155,7 @@
         </div>
         <div class="user-email">{data.user.email}</div>
       </div>
-      <form method="POST" action="/app/signout" use:enhance>
+      <form method="POST" action="/app/signout">
         <button type="submit" class="sign-out-btn">Sign out</button>
       </form>
     </div>

@@ -29,7 +29,8 @@ const RESERVED_USERNAMES = new Set([
   'public', 'private', 'official', 'staff', 'team', 'mod', 'moderator',
   'bot', 'noreply', 'no-reply', 'donotreply', 'do-not-reply',
   'hyllah', 'retro-vault', 'retro_vault', 'vault', 'anthropic',
-  'null', 'undefined', 'anonymous', 'me', 'you'
+  'null', 'undefined', 'anonymous', 'me', 'you', 'hyllah', 'frederik', 'flakne', 'fuck', 'satan', 'god', 'g0d',
+  'crappyslarre'
 ]);
 const USERNAME_RE = /^[a-z0-9_-]{3,30}$/;
 

@@ -14,7 +14,7 @@ import { redirect } from '@sveltejs/kit';
  * @returns {string} a same-origin path beginning with '/'
  */
 function safeNextPath(nextParam) {
-  const fallback = '/app';
+  const fallback = '/app/all';
   if (typeof nextParam !== 'string' || nextParam.length === 0) return fallback;
   try {
     const dummyOrigin = 'https://x.invalid';
