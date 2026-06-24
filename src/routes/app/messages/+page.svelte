@@ -61,7 +61,7 @@
                 {#if latestMessage.sender_id !== partner.id}
                   <span class="you-prefix">You: </span>
                 {/if}
-                <span class="preview-text">{latestMessage.content}</span>
+                <span class="preview-text">{latestMessage.body}</span>
               </div>
             </div>
             {#if unreadCount > 0}

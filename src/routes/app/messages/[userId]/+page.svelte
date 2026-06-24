@@ -127,7 +127,7 @@
         {#each messages as msg (msg.id)}
           <li class="msg" class:mine={msg.sender_id === myId}>
             <div class="msg-bubble">
-              <p class="msg-content">{msg.content}</p>
+              <p class="msg-content">{msg.body}</p>
             </div>
             <span class="msg-time">{formatTime(msg.created_at)}</span>
           </li>

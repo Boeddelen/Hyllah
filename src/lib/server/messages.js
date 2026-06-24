@@ -1,12 +1,12 @@
 /**
  * Message query helpers.
  *
- * Schema (migration 016 + read_at column):
- *   messages(id, sender_id, recipient_id, content, created_at, read_at)
+ * Live schema (migration 016):
+ *   messages(id, sender_id, receiver_id, body, read_at,
+ *            deleted_by_sender, deleted_by_receiver, created_at)
  *
- * RLS on the table ensures every query is already scoped to rows where
- * auth.uid() is sender or recipient. These helpers add no privilege — they
- * just shape the data.
+ * RLS scopes every query to rows where auth.uid() is sender or receiver.
+ * These helpers add no privilege — they just shape the data.
  *
  * Security model for sending:
  *   - Only authenticated users can insert (RLS: sender_id = auth.uid())
@@ -17,14 +17,14 @@
  * Load the inbox for a user: one entry per conversation partner,
  * sorted by most recent message. Returns an array of:
  *   { partner: {id, username, display_name, avatar_url},
- *     latestMessage: {id, sender_id, content, created_at},
+ *     latestMessage: {id, sender_id, body, created_at},
  *     unreadCount: number }
  */
 export async function getInbox(supabase, userId) {
   const { data: messages, error } = await supabase
     .from('messages')
-    .select('id, sender_id, recipient_id, content, created_at, read_at')
-    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .select('id, sender_id, receiver_id, body, created_at, read_at')
+    .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .limit(500); // ample cap for early usage; paginate later if needed
 
@@ -34,11 +34,11 @@ export async function getInbox(supabase, userId) {
   // one we see for each partner is already the latest.
   const partnerMap = new Map(); // partnerId → { latestMessage, unreadCount }
   for (const msg of messages) {
-    const partnerId = msg.sender_id === userId ? msg.recipient_id : msg.sender_id;
+    const partnerId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
     if (!partnerMap.has(partnerId)) {
       partnerMap.set(partnerId, { latestMessage: msg, unreadCount: 0 });
     }
-    if (msg.recipient_id === userId && !msg.read_at) {
+    if (msg.receiver_id === userId && !msg.read_at) {
       partnerMap.get(partnerId).unreadCount++;
     }
   }
@@ -69,10 +69,10 @@ export async function getInbox(supabase, userId) {
 export async function getConversation(supabase, userId, partnerId) {
   const { data, error } = await supabase
     .from('messages')
-    .select('id, sender_id, recipient_id, content, created_at, read_at')
+    .select('id, sender_id, receiver_id, body, created_at, read_at')
     .or(
-      `and(sender_id.eq.${userId},recipient_id.eq.${partnerId}),` +
-        `and(sender_id.eq.${partnerId},recipient_id.eq.${userId})`
+      `and(sender_id.eq.${userId},receiver_id.eq.${partnerId}),` +
+        `and(sender_id.eq.${partnerId},receiver_id.eq.${userId})`
     )
     .order('created_at', { ascending: true });
 
@@ -88,7 +88,7 @@ export async function markConversationRead(supabase, userId, partnerId) {
   const { error } = await supabase
     .from('messages')
     .update({ read_at: new Date().toISOString() })
-    .eq('recipient_id', userId)
+    .eq('receiver_id', userId)
     .eq('sender_id', partnerId)
     .is('read_at', null);
 
@@ -104,7 +104,7 @@ export async function countUnreadMessages(supabase, userId) {
   const { count, error } = await supabase
     .from('messages')
     .select('id', { count: 'exact', head: true })
-    .eq('recipient_id', userId)
+    .eq('receiver_id', userId)
     .is('read_at', null);
 
   if (error || count == null) return 0;

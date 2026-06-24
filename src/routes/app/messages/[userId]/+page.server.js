@@ -61,16 +61,18 @@ export const actions = {
     }
 
     const form = await request.formData();
-    const content = (form.get('content') ?? '').toString().trim();
-    if (!content) return fail(400, { action: 'send', error: 'Message cannot be empty.' });
-    if (content.length > MAX_CHARS) {
+    const body = (form.get('content') ?? '').toString().trim();
+    if (!body) return fail(400, { action: 'send', error: 'Message cannot be empty.' });
+    if (body.length > MAX_CHARS) {
       return fail(400, { action: 'send', error: `Message too long (max ${MAX_CHARS} characters).` });
     }
 
     const { error } = await supabase.from('messages').insert({
       sender_id: user.id,
-      recipient_id: partnerId,
-      content
+      receiver_id: partnerId,
+      body,
+      deleted_by_sender: false,
+      deleted_by_receiver: false
     });
 
     if (error) {
