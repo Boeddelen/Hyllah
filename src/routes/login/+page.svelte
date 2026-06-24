@@ -66,17 +66,22 @@
     status = 'sending';
     errorMsg = '';
 
-    const captchaToken = turnstileToken;
-    resetTurnstile(); // consume and reset immediately so a fresh one queues up
-
+    // Pass the token directly — don't reset the widget until after the call
+    // completes. Svelte 5's $state signal reads can behave unexpectedly when
+    // the signal is mutated between capturing a copy and using it in an async
+    // context, so we read it inline and reset only after Supabase responds.
     const { error } = await data.supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         shouldCreateUser: true,
-        captchaToken
+        captchaToken: String(turnstileToken)
       }
     });
+
+    // Reset after the call so the widget generates a fresh token for any retry
+    // or subsequent resend — the 30-second cooldown gives plenty of lead time.
+    resetTurnstile();
 
     if (error) {
       status = 'error';
@@ -139,17 +144,16 @@
     errorMsg = '';
     code = '';
 
-    const captchaToken = turnstileToken;
-    resetTurnstile();
-
     const { error } = await data.supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
         shouldCreateUser: true,
-        captchaToken
+        captchaToken: String(turnstileToken)
       }
     });
+
+    resetTurnstile();
 
     if (error) {
       status = 'awaiting_code';
