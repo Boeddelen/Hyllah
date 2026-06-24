@@ -1,11 +1,25 @@
 <script>
   import { page } from '$app/stores';
+  import { afterNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
   import { setThemeId, setMode, getStoredThemeId, getStoredMode, saveThemeToAccount } from '$lib/theme.js';
 
   let { data, children } = $props();
 
   let sidebarOpen = $state(false);
+  let unreadMessageCount = $state(0);
+
+  // Fetch the unread message badge count client-side so it doesn't add to the
+  // SSR CPU budget (which is tight on Cloudflare's free tier).
+  async function refreshUnreadCount() {
+    try {
+      const res = await fetch('/api/unread-count');
+      if (res.ok) {
+        const { count } = await res.json();
+        unreadMessageCount = count;
+      }
+    } catch { /* best-effort — badge just stays at 0 */ }
+  }
 
   // Theme persistence across browsers. The account is the source of truth: on
   // entry, apply the account theme (covers a fresh browser / incognito, which
@@ -22,6 +36,13 @@
       const mode = getStoredMode();
       if (themeId || mode) saveThemeToAccount({ themeId, mode });
     }
+    refreshUnreadCount();
+  });
+
+  // Re-check unread count after navigating away from messages so the badge
+  // clears promptly after the user reads their messages.
+  afterNavigate(() => {
+    refreshUnreadCount();
   });
 
   // Find active collection from URL
@@ -117,8 +138,8 @@
           onclick={() => (sidebarOpen = false)}
         >
           <span class="nav-text">Messages</span>
-          {#if (data.unreadMessageCount ?? 0) > 0}
-            <span class="nav-badge">{data.unreadMessageCount}</span>
+          {#if unreadMessageCount > 0}
+            <span class="nav-badge">{unreadMessageCount}</span>
           {/if}
         </a>
         {#if data.profile?.show_archive !== false}

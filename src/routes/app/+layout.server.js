@@ -2,7 +2,6 @@ import { redirect } from '@sveltejs/kit';
 import { loadCollections, loadCollectionCounts, loadUserProfile } from '$lib/server/db';
 import { getCachedRates } from '$lib/server/rates.js';
 import { countPendingIncoming } from '$lib/server/friendships.js';
-import { countUnreadMessages } from '$lib/server/messages.js';
 
 /** @type {import('./$types').LayoutServerLoad} */
 export const load = async ({ locals: { safeGetSession, supabase } }) => {
@@ -10,7 +9,7 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
   if (!session || !user) throw redirect(303, '/login');
 
   // Profile, collections, counts, and pending friend requests in parallel.
-  const [profile, collections, counts, pendingRequestCount, archivedRes, unreadMessageCount] = await Promise.all([
+  const [profile, collections, counts, pendingRequestCount, archivedRes] = await Promise.all([
     loadUserProfile(supabase, user.id),
     loadCollections(supabase, user.id),
     loadCollectionCounts(supabase, user.id),
@@ -22,8 +21,7 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_archived', true)
-      .eq('is_pending_delete', false),
-    countUnreadMessages(supabase, user.id)
+      .eq('is_pending_delete', false)
   ]);
   const archivedCount = archivedRes?.count ?? 0;
 
@@ -50,7 +48,6 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
     displayCurrency,
     pendingRequestCount,
     archivedCount,
-    unreadMessageCount,
     // The user's account-saved theme (null parts mean "not chosen yet").
     serverTheme: {
       themeId: profile?.app_theme ?? null,
