@@ -1,4 +1,8 @@
 <script>
+  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
+  import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
+
   let { data } = $props();
 
   // ── State ────────────────────────────────────────
@@ -12,23 +16,72 @@
 
   let cooldownTimer = null;
 
+  // ── Turnstile ─────────────────────────────────────
+  // Explicit rendering so we control the widget lifecycle in this SPA.
+  // The token is consumed once per signInWithOtp call; we reset the widget
+  // after each use so a fresh token is always ready for resend.
+  // The secret key lives in Supabase dashboard only — never in client code.
+  let turnstileToken = $state('');
+  let widgetId = null;
+
+  function renderTurnstile() {
+    if (!browser || !window.turnstile) return;
+    const el = document.getElementById('turnstile-widget');
+    if (!el || widgetId !== null) return;
+    widgetId = window.turnstile.render('#turnstile-widget', {
+      sitekey: PUBLIC_TURNSTILE_SITE_KEY,
+      theme: 'auto',
+      // interaction-only: invisible to most users; appears only when Cloudflare
+      // needs a human interaction. Silent for legitimate users.
+      appearance: 'interaction-only',
+      callback:           (token)     => { turnstileToken = token; },
+      'expired-callback':             () => { turnstileToken = ''; },
+      'error-callback':               () => { turnstileToken = ''; }
+    });
+  }
+
+  function resetTurnstile() {
+    turnstileToken = '';
+    if (widgetId !== null && browser && window.turnstile) {
+      window.turnstile.reset(widgetId);
+    }
+  }
+
+  onMount(() => {
+    // Dynamically load the Turnstile script to avoid SSR issues.
+    // Cloudflare requires the exact URL — do not proxy or bundle this file.
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => renderTurnstile();
+    document.head.appendChild(script);
+  });
+
   // ── Email submit ─────────────────────────────────
   async function handleEmailSubmit(event) {
     event.preventDefault();
-    if (!email.trim() || status === 'sending') return;
+    if (!email.trim() || status === 'sending' || !turnstileToken) return;
 
     status = 'sending';
     errorMsg = '';
 
+    // Pass the token directly — don't reset the widget until after the call
+    // completes. Svelte 5's $state signal reads can behave unexpectedly when
+    // the signal is mutated between capturing a copy and using it in an async
+    // context, so we read it inline and reset only after Supabase responds.
     const { error } = await data.supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        // shouldSendEmail controls whether Supabase sends a magic link or OTP.
-        // We always send — the difference is what we do after.
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: true
+        shouldCreateUser: true,
+        captchaToken: String(turnstileToken)
       }
     });
+
+    // Reset after the call so the widget generates a fresh token for any retry
+    // or subsequent resend — the 30-second cooldown gives plenty of lead time.
+    resetTurnstile();
 
     if (error) {
       status = 'error';
@@ -86,7 +139,7 @@
   }
 
   async function resendCode() {
-    if (resendCooldown > 0 || status === 'sending') return;
+    if (resendCooldown > 0 || status === 'sending' || !turnstileToken) return;
     status = 'sending';
     errorMsg = '';
     code = '';
@@ -95,9 +148,12 @@
       email: email.trim().toLowerCase(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: true
+        shouldCreateUser: true,
+        captchaToken: String(turnstileToken)
       }
     });
+
+    resetTurnstile();
 
     if (error) {
       status = 'awaiting_code';
@@ -115,6 +171,7 @@
     errorMsg = '';
     resendCooldown = 0;
     clearInterval(cooldownTimer);
+    // Widget stays mounted; it will auto-solve again
   }
 
   // Auto-submit when 6 digits entered
@@ -137,6 +194,13 @@
   <div class="login-card">
     <div class="brand-mark">Hyl<em>lah</em></div>
     <div class="brand-sub">Sign in</div>
+
+    <!--
+      Turnstile widget — always mounted so the token stays fresh across steps.
+      interaction-only: invisible to most users; only appears if Cloudflare
+      needs a human interaction. The container takes no space when invisible.
+    -->
+    <div id="turnstile-widget" class="turnstile-wrap" aria-hidden="true"></div>
 
     <!-- ── Sent magic link ───────────────────────── -->
     {#if status === 'sent_link'}
@@ -207,7 +271,7 @@
             <button
               class="link-btn"
               onclick={resendCode}
-              disabled={status === 'sending'}
+              disabled={status === 'sending' || !turnstileToken}
             >
               {status === 'sending' ? 'Sending...' : 'Resend code'}
             </button>
@@ -276,10 +340,12 @@
         <button
           type="submit"
           class="btn primary"
-          disabled={status === 'sending' || !email.trim()}
+          disabled={status === 'sending' || !email.trim() || !turnstileToken}
         >
           {#if status === 'sending'}
             Sending…
+          {:else if !turnstileToken}
+            Verifying…
           {:else if method === 'code'}
             Send code →
           {:else}
@@ -346,6 +412,16 @@
     color: var(--ink-3);
     margin-top: 10px;
     margin-bottom: 40px;
+  }
+
+  /* ── Turnstile ──────────────────────────────────── */
+  /* interaction-only: no height when invisible; expands only if a human
+     challenge is required (rare for legitimate users). */
+  .turnstile-wrap {
+    display: flex;
+    justify-content: center;
+    min-height: 0;
+    margin-bottom: 0;
   }
 
   /* ── Method toggle ────────────────────────────── */
