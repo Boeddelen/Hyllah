@@ -151,6 +151,9 @@
               </div>
             </a>
             <div class="row-actions">
+              <a href="/app/messages/{item.user.id}" class="btn ghost sm msg-btn">
+                Message
+              </a>
               <form
                 method="POST"
                 action="?/unfriend"
@@ -324,6 +327,13 @@
   .btn.ghost:hover:not(:disabled) {
     color: var(--ink);
     border-color: var(--ink-3);
+  }
+
+  /* Message link — same look as .btn.ghost.sm but an <a> tag */
+  .msg-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
   }
 
   .empty {

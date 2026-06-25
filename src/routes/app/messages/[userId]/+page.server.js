@@ -30,12 +30,18 @@ export const load = async ({ params, locals: { safeGetSession, supabase } }) => 
   ]);
   const isFriend = friendshipStatus === 'friends' && !isBlocked;
 
-  // Load the conversation and mark incoming messages as read in parallel.
+  // Block UUID-guessing: if you've never exchanged messages with someone
+  // and you're not friends, knowing their UUID gives you nothing.
+  // RLS already protects private profiles, but this closes the public-profile
+  // information leak (seeing their name/avatar via the thread URL).
   const [messages] = await Promise.all([
     getConversation(supabase, user.id, partnerId),
-    // Side-effect: mark all their messages to me as read.
     markConversationRead(supabase, user.id, partnerId)
   ]);
+
+  if (!isFriend && messages.length === 0) {
+    throw redirect(303, '/app/messages');
+  }
 
   return { partner, messages, isFriend, currentUserId: user.id };
 };

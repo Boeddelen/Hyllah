@@ -82,6 +82,23 @@
       : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  /**
+   * Render a message body safely: escape all HTML first, then wrap http(s)
+   * URLs in anchor tags. Using {@html} on the result is safe because we
+   * escape before linkifying, so no user-supplied HTML can leak through.
+   */
+  function renderBody(text) {
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    return escaped.replace(
+      /(https?:\/\/[^\s<"]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+  }
+
   function handleKey(e) {
     // Ctrl/Cmd+Enter sends, plain Enter is a newline.
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -127,7 +144,8 @@
         {#each messages as msg (msg.id)}
           <li class="msg" class:mine={msg.sender_id === myId}>
             <div class="msg-bubble">
-              <p class="msg-content">{msg.body}</p>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              <p class="msg-content">{@html renderBody(msg.body)}</p>
             </div>
             <span class="msg-time">{formatTime(msg.created_at)}</span>
           </li>
@@ -251,7 +269,7 @@
   .messages-area {
     flex: 1;
     overflow-y: auto;
-    padding: 20px 24px;
+    padding: 12px 16px;
     display: flex;
     flex-direction: column;
   }
@@ -271,8 +289,8 @@
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-top: auto; /* push to bottom */
+    gap: 4px;
+    margin-top: auto;
   }
 
   .msg {
@@ -287,7 +305,7 @@
   }
 
   .msg-bubble {
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-radius: 16px;
     max-width: 100%;
   }
@@ -308,14 +326,24 @@
     color: var(--ink);
     white-space: pre-wrap;
     word-break: break-word;
+    margin: 0;
   }
   .msg.mine .msg-content { color: var(--bg); }
+
+  /* Links inside messages — inherit bubble colour, underlined */
+  .msg-content :global(a) {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+  }
+  .msg-content :global(a:hover) { opacity: 0.8; }
 
   .msg-time {
     font-family: var(--ff-mono);
     font-size: 10px;
     color: var(--ink-3);
-    margin-top: 3px;
+    margin-top: 2px;
     padding: 0 2px;
   }
 
