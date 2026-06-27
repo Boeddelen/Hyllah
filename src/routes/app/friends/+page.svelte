@@ -1,5 +1,6 @@
 <script>
   import { enhance } from '$app/forms';
+  import { invalidate } from '$app/navigation';
 
   let { data } = $props();
 
@@ -20,6 +21,77 @@
   function displayName(u) {
     return u?.display_name || u?.username || 'Unknown';
   }
+
+  // ── User search ─────────────────────────────────────
+  // Minimum 2 chars before hitting the server (avoids over-broad queries).
+  // 250ms debounce so we don't fire on every keystroke.
+  let searchQuery = $state('');
+  let searchResults = $state([]);
+  let searching = $state(false);
+  let quickAddBusyId = $state(null);
+  let searchDebounceTimer;
+  let lastIssuedQuery = '';
+
+  // IDs of users we've already quick-added in this session, so we can show
+  // "Request sent" immediately without waiting for a server round-trip.
+  let quickAdded = $state(new Set());
+
+  function onSearchInput() {
+    clearTimeout(searchDebounceTimer);
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      searchResults = [];
+      searching = false;
+      return;
+    }
+    searching = true;
+    searchDebounceTimer = setTimeout(() => runSearch(q), 250);
+  }
+
+  async function runSearch(q) {
+    lastIssuedQuery = q;
+    try {
+      const res = await fetch(`/api/user-search?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error('search failed');
+      const { results } = await res.json();
+      // Only apply if this is still the most recent query (avoid races).
+      if (lastIssuedQuery === q) {
+        searchResults = results ?? [];
+        searching = false;
+      }
+    } catch (err) {
+      if (lastIssuedQuery === q) {
+        console.error('[friends] search failed', err);
+        searchResults = [];
+        searching = false;
+      }
+    }
+  }
+
+  function quickAddSubmit(userId) {
+    return () => {
+      quickAddBusyId = userId;
+      return async ({ result, update }) => {
+        if (result.type === 'success') {
+          // Optimistically mark this user as "request sent" so the button
+          // updates immediately without re-querying.
+          quickAdded = new Set([...quickAdded, userId]);
+        }
+        await update();
+        quickAddBusyId = null;
+        // Reload outgoing requests so the "Pending requests" section reflects it.
+        invalidate(() => true);
+      };
+    };
+  }
+
+  // Per your spec: search results show only the user (avatar, name, handle)
+  // plus a quick-add button when relevant. No status badges in the list.
+  // The button is shown only when adding is actually possible.
+  function canQuickAdd(r) {
+    if (quickAdded.has(r.id)) return false;
+    return r.friendshipStatus === 'none' || r.friendshipStatus === 'declined';
+  }
 </script>
 
 <svelte:head>
@@ -31,6 +103,61 @@
     <div class="eyebrow">Your network</div>
     <h1>Friends</h1>
   </header>
+
+  <!-- ── Find people ───────────────────────────────────── -->
+  <section class="section search-section">
+    <div class="search-wrap">
+      <input
+        type="search"
+        class="search-input"
+        placeholder="Find people by name or handle…"
+        bind:value={searchQuery}
+        oninput={onSearchInput}
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    {#if searchQuery.trim().length >= 2}
+      {#if searching}
+        <p class="search-status">Searching…</p>
+      {:else if searchResults.length === 0}
+        <p class="search-status">No public profiles matched.</p>
+      {:else}
+        <div class="people-list">
+          {#each searchResults as r (r.id)}
+            <div class="person-row">
+              <a href="/u/{r.username}" class="person-link">
+                {#if r.avatar_url}
+                  <img src={r.avatar_url} alt="" class="avatar" />
+                {:else}
+                  <div class="avatar-placeholder">{displayName(r).charAt(0).toUpperCase()}</div>
+                {/if}
+                <div class="person-meta">
+                  <div class="person-name">{displayName(r)}</div>
+                  <div class="person-username">@{r.username}</div>
+                </div>
+              </a>
+              <div class="row-actions">
+                {#if canQuickAdd(r)}
+                  <form
+                    method="POST"
+                    action="?/quickAdd"
+                    use:enhance={quickAddSubmit(r.id)}
+                  >
+                    <input type="hidden" name="userId" value={r.id} />
+                    <button type="submit" class="btn primary sm" disabled={quickAddBusyId === r.id}>
+                      {quickAddBusyId === r.id ? 'Sending…' : 'Add friend'}
+                    </button>
+                  </form>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    {/if}
+  </section>
 
   <!-- ── Incoming requests ──────────────────────────────── -->
   {#if incoming.length > 0}
@@ -355,5 +482,32 @@
   @media (max-width: 640px) {
     .friends-page { padding: 32px 20px 60px; }
     .page-header h1 { font-size: 32px; }
+  }
+
+  /* ── Search ───────────────────────────────────────── */
+  .search-section { margin-bottom: 32px; }
+  .search-wrap { margin-bottom: 12px; }
+  .search-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-2);
+    border: 1px solid var(--groove);
+    border-radius: var(--radius);
+    color: var(--ink);
+    font-family: var(--ff-display);
+    font-size: 15px;
+    outline: none;
+    transition: border-color var(--t);
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-input::placeholder { color: var(--ink-3); }
+
+  .search-status {
+    font-family: var(--ff-display);
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-3);
+    margin: 0;
+    padding: 12px 4px;
   }
 </style>

@@ -4,6 +4,7 @@ import {
   listIncomingRequests,
   listOutgoingRequests
 } from '$lib/server/friendships.js';
+import { blockExistsBetween } from '$lib/server/friendships.js';
 import { listBlockedIds } from '$lib/server/blocks.js';
 
 /** @type {import('./$types').PageServerLoad} */
@@ -140,5 +141,72 @@ export const actions = {
       return fail(500, { action: 'unfriend', error: 'Could not remove friend.' });
     }
     return { success: true, action: 'unfriend' };
+  },
+
+  // Quick-add from search results: send a friend request directly by user ID.
+  // Mirrors /u/[username] ?/sendFriendRequest but accepts an ID instead of a
+  // username, since search results already carry the ID.
+  quickAdd: async ({ request, locals: { safeGetSession, supabase } }) => {
+    const { user } = await safeGetSession();
+    if (!user) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const targetId = (form.get('userId') ?? '').toString();
+    if (!/^[0-9a-f-]{36}$/i.test(targetId)) {
+      return fail(400, { action: 'quickAdd', error: 'Invalid user id.' });
+    }
+    if (targetId === user.id) {
+      return fail(400, { action: 'quickAdd', error: "You can't friend yourself." });
+    }
+
+    // Re-verify the target exists and is public — search results could be stale.
+    const { data: target } = await supabase
+      .from('users')
+      .select('id, is_public')
+      .eq('id', targetId)
+      .maybeSingle();
+    if (!target) {
+      return fail(404, { action: 'quickAdd', error: 'User not found.' });
+    }
+    if (!target.is_public) {
+      return fail(403, { action: 'quickAdd', error: 'This profile is private.' });
+    }
+
+    // Block check — neither direction may have a block.
+    if (await blockExistsBetween(supabase, user.id, target.id)) {
+      return fail(403, { action: 'quickAdd', error: 'Unable to send request.' });
+    }
+
+    // Guard against duplicates in either direction.
+    const { data: existing } = await supabase
+      .from('friendships')
+      .select('id, status')
+      .or(
+        `and(requester_id.eq.${user.id},addressee_id.eq.${target.id}),` +
+          `and(requester_id.eq.${target.id},addressee_id.eq.${user.id})`
+      )
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.status === 'accepted') {
+        return fail(409, { action: 'quickAdd', error: 'You are already friends.' });
+      }
+      if (existing.status === 'pending') {
+        return fail(409, { action: 'quickAdd', error: 'A request is already pending.' });
+      }
+      // Declined — remove so a fresh request can be sent.
+      await supabase.from('friendships').delete().eq('id', existing.id);
+    }
+
+    const { error: insertErr } = await supabase
+      .from('friendships')
+      .insert({ requester_id: user.id, addressee_id: target.id, status: 'pending' });
+
+    if (insertErr) {
+      console.error('[friends] quickAdd failed:', insertErr.message);
+      return fail(500, { action: 'quickAdd', error: 'Could not send request.' });
+    }
+
+    return { success: true, action: 'quickAdd' };
   }
 };
