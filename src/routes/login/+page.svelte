@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
   import { PUBLIC_TURNSTILE_SITE_KEY } from '$env/static/public';
 
@@ -17,27 +17,41 @@
   let cooldownTimer = null;
 
   // ── Turnstile ─────────────────────────────────────
-  // Explicit rendering so we control the widget lifecycle in this SPA.
-  // The token is consumed once per signInWithOtp call; we reset the widget
-  // after each use so a fresh token is always ready for resend.
-  // The secret key lives in Supabase dashboard only — never in client code.
+  // WHY appearance:'always' (not 'interaction-only'):
+  //   On iOS Safari, Cloudflare's risk scoring often requires an interactive
+  //   challenge. With 'interaction-only' the widget renders at 0px height so
+  //   the user can't interact and the token never arrives. 'always' keeps the
+  //   compact widget visible — auto-solves in ~1s for most users, shows a
+  //   checkbox if extra verification is needed.
   let turnstileToken = $state('');
   let widgetId = null;
+  let turnstileStuck = $state(false);
+  let stuckTimer = null;
 
   function renderTurnstile() {
     if (!browser || !window.turnstile) return;
     const el = document.getElementById('turnstile-widget');
     if (!el || widgetId !== null) return;
+
     widgetId = window.turnstile.render('#turnstile-widget', {
       sitekey: PUBLIC_TURNSTILE_SITE_KEY,
       theme: 'auto',
-      // interaction-only: invisible to most users; appears only when Cloudflare
-      // needs a human interaction. Silent for legitimate users.
-      appearance: 'interaction-only',
-      callback:           (token)     => { turnstileToken = token; },
-      'expired-callback':             () => { turnstileToken = ''; },
-      'error-callback':               () => { turnstileToken = ''; }
+      appearance: 'always',
+      size: 'compact',
+      callback: (token) => {
+        turnstileToken = token;
+        turnstileStuck = false;
+        clearTimeout(stuckTimer);
+      },
+      'expired-callback': () => { turnstileToken = ''; },
+      'error-callback':   () => { turnstileToken = ''; }
     });
+
+    // Surface a message if verification hasn't completed after 8s — better
+    // than silently leaving the user with a permanently disabled button.
+    stuckTimer = setTimeout(() => {
+      if (!turnstileToken) turnstileStuck = true;
+    }, 8000);
   }
 
   function resetTurnstile() {
@@ -48,14 +62,18 @@
   }
 
   onMount(() => {
-    // Dynamically load the Turnstile script to avoid SSR issues.
-    // Cloudflare requires the exact URL — do not proxy or bundle this file.
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     script.async = true;
     script.defer = true;
     script.onload = () => renderTurnstile();
+    script.onerror = () => { turnstileStuck = true; };
     document.head.appendChild(script);
+  });
+
+  onDestroy(() => {
+    clearTimeout(cooldownTimer);
+    clearTimeout(stuckTimer);
   });
 
   // ── Email submit ─────────────────────────────────
@@ -196,11 +214,17 @@
     <div class="brand-sub">Sign in</div>
 
     <!--
-      Turnstile widget — always mounted so the token stays fresh across steps.
-      interaction-only: invisible to most users; only appears if Cloudflare
-      needs a human interaction. The container takes no space when invisible.
+      Turnstile widget — compact, always visible so iOS Safari's interactive
+      challenge can render and be tapped. Auto-solves silently for most users.
     -->
     <div id="turnstile-widget" class="turnstile-wrap" aria-hidden="true"></div>
+    {#if turnstileStuck}
+      <p class="turnstile-notice">
+        Verification is taking too long.
+        <button class="link-btn" onclick={() => window.location.reload()}>Refresh the page</button>
+        — or check that content blockers aren't blocking Cloudflare.
+      </p>
+    {/if}
 
     <!-- ── Sent magic link ───────────────────────── -->
     {#if status === 'sent_link'}
@@ -415,13 +439,23 @@
   }
 
   /* ── Turnstile ──────────────────────────────────── */
-  /* interaction-only: no height when invisible; expands only if a human
-     challenge is required (rare for legitimate users). */
+  /* Compact widget is always visible (~30px tall). The container gives it
+     space so interactive challenges can render and be tapped on mobile. */
   .turnstile-wrap {
     display: flex;
     justify-content: center;
-    min-height: 0;
-    margin-bottom: 0;
+    margin: 8px 0 4px;
+    min-height: 30px;
+  }
+
+  .turnstile-notice {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    text-align: center;
+    line-height: 1.6;
+    padding: 0 8px;
+    margin: 0 0 8px;
   }
 
   /* ── Method toggle ────────────────────────────── */
