@@ -4,19 +4,27 @@ import {
   listIncomingRequests,
   listOutgoingRequests
 } from '$lib/server/friendships.js';
+import { listBlockedIds } from '$lib/server/blocks.js';
 
 /** @type {import('./$types').PageServerLoad} */
 export const load = async ({ locals: { safeGetSession, supabase } }) => {
   const { user } = await safeGetSession();
   if (!user) throw redirect(303, '/login');
 
-  const [friends, incoming, outgoing] = await Promise.all([
+  const [friends, incoming, outgoing, blockedIds] = await Promise.all([
     listFriends(supabase, user.id),
     listIncomingRequests(supabase, user.id),
-    listOutgoingRequests(supabase, user.id)
+    listOutgoingRequests(supabase, user.id),
+    listBlockedIds(supabase, user.id)
   ]);
 
-  return { friends, incoming, outgoing };
+  // Hide any rows involving someone blocked in either direction.
+  const hideIfBlocked = (item) => !blockedIds.has(item.user.id);
+  return {
+    friends:  friends.filter(hideIfBlocked),
+    incoming: incoming.filter(hideIfBlocked),
+    outgoing: outgoing.filter(hideIfBlocked)
+  };
 };
 
 // Helper: load a friendship row and verify the current user is part of it.

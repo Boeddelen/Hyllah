@@ -767,6 +767,16 @@
     <div class="card">
       <div class="data-row">
         <div class="data-row-text">
+          <div class="data-row-title">Blocked users</div>
+          <div class="data-row-hint">
+            People you've blocked can't see your profile, send you friend requests, or message you.
+          </div>
+        </div>
+        <a href="/app/blocked" class="btn ghost">Manage…</a>
+      </div>
+
+      <div class="data-row">
+        <div class="data-row-text">
           <div class="data-row-title">Download a copy</div>
           <div class="data-row-hint">
             Everything you own — profile, collections, records, tracklists, and the

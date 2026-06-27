@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import { getFriendshipStatus, blockExistsBetween } from '$lib/server/friendships.js';
+import { blockUser, unblockUser, reportUser, VALID_REASONS } from '$lib/server/blocks.js';
 
 // Note: the profile cache only stores the public, viewer-independent payload
 // (user/collections/records/stats). The viewer-specific friendshipStatus is
@@ -109,6 +110,15 @@ export const load = async ({ params, locals: { supabase, safeGetSession } }) => 
   }
 
   // ── Viewer-specific state (never cached) ──────────────────────────────────
+  // Block enforcement comes BEFORE friendship lookup: a blocked user
+  // shouldn't even know this profile exists, so we return the same 404
+  // they'd get for a non-existent profile.
+  if (viewer && viewer.id !== payload.user.id) {
+    if (await blockExistsBetween(supabase, viewer.id, payload.user.id)) {
+      throw error(404, 'Profile not found');
+    }
+  }
+
   // Friendship status with this profile (viewer was resolved up front).
   let friendshipStatus = 'none';
   let isOwnProfile = false;
@@ -192,5 +202,56 @@ export const actions = {
     }
 
     return { success: true, action: 'sendFriendRequest' };
+  },
+
+  // Block this profile's owner. Auto-removes any existing friendship.
+  // The viewer is redirected to the inbox (the profile won't load for them anymore).
+  block: async ({ params, locals: { supabase, safeGetSession } }) => {
+    const { user: viewer } = await safeGetSession();
+    if (!viewer) throw redirect(303, '/login');
+
+    const { data: target } = await supabase
+      .from('users').select('id').ilike('username', params.username).maybeSingle();
+    if (!target) return fail(404, { action: 'block', error: 'User not found.' });
+    if (target.id === viewer.id) {
+      return fail(400, { action: 'block', error: "You can't block yourself." });
+    }
+
+    const result = await blockUser(supabase, viewer.id, target.id);
+    if (!result.ok) {
+      console.error('[profile] block failed:', result.error);
+      return fail(500, { action: 'block', error: 'Could not block user.' });
+    }
+
+    throw redirect(303, '/app/all');
+  },
+
+  // Submit an abuse report. The reported user is not notified.
+  report: async ({ request, params, locals: { supabase, safeGetSession } }) => {
+    const { user: viewer } = await safeGetSession();
+    if (!viewer) throw redirect(303, '/login');
+
+    const form = await request.formData();
+    const category = (form.get('category') ?? '').toString();
+    const detail   = (form.get('detail')   ?? '').toString();
+
+    if (!VALID_REASONS.has(category)) {
+      return fail(400, { action: 'report', error: 'Please choose a reason.' });
+    }
+
+    const { data: target } = await supabase
+      .from('users').select('id').ilike('username', params.username).maybeSingle();
+    if (!target) return fail(404, { action: 'report', error: 'User not found.' });
+    if (target.id === viewer.id) {
+      return fail(400, { action: 'report', error: "You can't report yourself." });
+    }
+
+    const result = await reportUser(supabase, viewer.id, target.id, category, detail);
+    if (!result.ok) {
+      console.error('[profile] report failed:', result.error);
+      return fail(500, { action: 'report', error: 'Could not submit report.' });
+    }
+
+    return { success: true, action: 'report' };
   }
 };
