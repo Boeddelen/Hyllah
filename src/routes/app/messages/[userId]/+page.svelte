@@ -83,20 +83,66 @@
   }
 
   /**
-   * Render a message body safely: escape all HTML first, then wrap http(s)
-   * URLs in anchor tags. Using {@html} on the result is safe because we
-   * escape before linkifying, so no user-supplied HTML can leak through.
+   * Render a message body safely as HTML. Linkifies:
+   *   - http(s) URLs                e.g. https://hyllah.com/r/123
+   *   - protocol-less URLs          e.g. example.com/lander
+   * Both are wrapped in target="_blank" rel="noopener noreferrer" anchors.
+   *
+   * XSS / safety notes — please read before changing this:
+   *   1. The full message body is HTML-escaped BEFORE we run the linkify
+   *      regex, so user-supplied HTML can never leak through, even via
+   *      the surrounding characters of a matched link.
+   *   2. The linkify regex matches a narrow shape only: a hostname with a
+   *      whitelisted TLD, optionally followed by a path/query (no spaces,
+   *      no quotes, no angle brackets).
+   *   3. The matched URL is fed through encodeURI() before being placed
+   *      into the href, so any unusual characters that survived (e.g. a
+   *      stray quote that wasn't escaped because it sat inside the match)
+   *      are percent-encoded and can't break out of the attribute.
+   *   4. We refuse to linkify if the character immediately before the match
+   *      is "@" (avoids turning email addresses into web links) or "/" or
+   *      "." (avoids matching the middle of a longer URL twice).
+   *   5. The TLD list is short on purpose — every entry is a real TLD that
+   *      survives "version 4.2" false-positives. Add new TLDs sparingly.
    */
+  const TLD_LIST = [
+    'com', 'org', 'net', 'edu', 'gov', 'io', 'co', 'app', 'dev', 'no',
+    'se', 'dk', 'fi', 'de', 'fr', 'nl', 'es', 'it', 'uk', 'eu',
+    'me', 'tv', 'fm', 'gg', 'xyz', 'info', 'biz', 'tech', 'art', 'shop',
+    'store', 'site', 'online', 'page', 'link', 'club', 'cloud', 'live',
+    'news', 'blog', 'film', 'music', 'photo', 'design', 'studio'
+  ];
+  // Build: (^|[^a-z0-9@/.\-])(domain.tld[/path]?)
+  //   - lookbehind for word boundary that ALSO excludes @ / . -
+  //   - hostname: labels of [a-z0-9-], joined by dots
+  //   - then a literal TLD from the list
+  //   - optional path/query: starts with / ? or # and runs until whitespace/quote/bracket
+  const LINK_RE = new RegExp(
+    `(^|[^a-z0-9@/.\\-])` +
+      `(` +
+        `(?:https?://)?` +
+        `(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+` +
+        `(?:${TLD_LIST.join('|')})` +
+        `(?:[/?#][^\\s<>"']*)?` +
+      `)` +
+      `(?=[\\s.,;:!?)]|$)`,
+    'gi'
+  );
+
   function renderBody(text) {
     const escaped = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-    return escaped.replace(
-      /(https?:\/\/[^\s<"]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+    return escaped.replace(LINK_RE, (_match, lead, url) => {
+      // Build href: prepend https:// if missing, percent-encode any
+      // remaining unusual chars so the href attribute can't be broken.
+      const href = encodeURI(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+      return `${lead}<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    });
   }
 
   function handleKey(e) {
@@ -206,8 +252,9 @@
     flex-direction: column;
     height: calc(100vh - 0px); /* fill available height */
     max-height: 100vh;
-    max-width: 680px;
-    margin: 0;
+    max-width: 860px;
+    margin: 0 auto; /* center in the available space */
+    width: 100%;
   }
 
   /* ── Header ─────────────────────────────────────────── */
@@ -216,7 +263,6 @@
     align-items: center;
     gap: 12px;
     padding: 16px 24px;
-    border-bottom: 1px solid var(--groove);
     flex-shrink: 0;
   }
   .back-btn {
@@ -350,7 +396,6 @@
   /* ── Compose ────────────────────────────────────────── */
   .compose-area {
     flex-shrink: 0;
-    border-top: 1px solid var(--groove);
     padding: 16px 24px;
     background: var(--bg);
   }
