@@ -2,11 +2,41 @@ import { redirect } from '@sveltejs/kit';
 import { loadCollections, loadCollectionCounts, loadUserProfile } from '$lib/server/db';
 import { getCachedRates } from '$lib/server/rates.js';
 import { countPendingIncoming } from '$lib/server/friendships.js';
+import { CURRENT_TOS_VERSION } from '$lib/server/legal.js';
 
 /** @type {import('./$types').LayoutServerLoad} */
-export const load = async ({ locals: { safeGetSession, supabase } }) => {
+export const load = async ({ url, locals: { safeGetSession, supabase } }) => {
   const { session, user } = await safeGetSession();
   if (!session || !user) throw redirect(303, '/login');
+
+  // Sign-out endpoint must always be reachable without gating —
+  // a user who refuses ToS still needs to be able to leave.
+  const isSignout = url.pathname === '/app/signout';
+
+  // Light pre-check: just enough fields to decide whether to gate.
+  // We need this before the parallel load so we can short-circuit and redirect.
+  if (!isSignout) {
+    const { data: profileGate } = await supabase
+      .from('users')
+      .select('display_name, tos_accepted_at, tos_version')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Step 1 — must accept current ToS first.
+    const tosOk =
+      profileGate?.tos_accepted_at &&
+      profileGate?.tos_version === CURRENT_TOS_VERSION;
+    if (!tosOk && url.pathname !== '/welcome/terms') {
+      throw redirect(303, '/welcome/terms');
+    }
+
+    // Step 2 — must have a display name.
+    if (tosOk && !profileGate?.display_name && url.pathname !== '/welcome/profile') {
+      throw redirect(303, '/welcome/profile');
+    }
+    // (Step 3 — first collection — is handled inside the /app routes
+    //  by the existing setup flow, so it stays right where it is.)
+  }
 
   // Profile, collections, counts, and pending friend requests in parallel.
   const [profile, collections, counts, pendingRequestCount, archivedRes] = await Promise.all([
