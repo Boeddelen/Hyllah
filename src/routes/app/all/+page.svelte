@@ -437,7 +437,7 @@
         <line x1="10" y1="36" x2="46" y2="36" />
         <line x1="10" y1="28" x2="46" y2="28" />
       </svg>
-      <p>Your vault is empty — add your first record with <strong>+ Add record</strong> above.</p>
+      <p>Your vault is empty — add your first record with <button type="button" class="inline-link" onclick={openAdd}>+ Add record</button> above.</p>
     </div>
   {:else if visibleRecords.length === 0}
     <div class="empty-state">
@@ -799,6 +799,18 @@
     font-family: var(--ff-display); font-style: italic;
     font-size: 15px; color: var(--ink-3); margin: 0;
   }
+  .empty-state .inline-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    font-style: normal;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .empty-state .inline-link:hover { opacity: 0.85; }
 
   /* ── Record grid ───────────────────────────────── */
   .record-grid {

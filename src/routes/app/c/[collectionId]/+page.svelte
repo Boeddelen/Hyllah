@@ -423,7 +423,7 @@
           <line x1="54" y1="14" x2="54" y2="54" opacity="0.5" />
         </svg>
         <h2>Nothing on the shelf yet.</h2>
-        <p>Click <strong>Add record</strong> to put the first one in.</p>
+        <p>Click <button type="button" class="inline-link" onclick={openAdd}>Add record</button> to put the first one in.</p>
       </div>
     {/if}
   {:else}
@@ -753,6 +753,19 @@
     font-size: 16px; color: var(--ink-2); line-height: 1.6;
   }
   .empty-state strong { color: var(--accent); font-weight: 500; font-style: normal; }
+  .empty-state .inline-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 500;
+    font-style: normal;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .empty-state .inline-link:hover { opacity: 0.85; }
 
   /* ── Grid ────────────────────────────────────────── */
   .record-grid {

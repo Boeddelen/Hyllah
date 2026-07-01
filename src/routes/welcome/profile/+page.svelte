@@ -201,6 +201,7 @@
     background: none;
     border: none;
     padding-left: 2px;
+    font-family: var(--ff-mono);
   }
   .username-input:focus { box-shadow: none; }
 

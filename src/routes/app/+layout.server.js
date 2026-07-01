@@ -13,32 +13,9 @@ export const load = async ({ url, locals: { safeGetSession, supabase } }) => {
   // a user who refuses ToS still needs to be able to leave.
   const isSignout = url.pathname === '/app/signout';
 
-  // Light pre-check: just enough fields to decide whether to gate.
-  // We need this before the parallel load so we can short-circuit and redirect.
-  if (!isSignout) {
-    const { data: profileGate } = await supabase
-      .from('users')
-      .select('display_name, tos_accepted_at, tos_version')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    // Step 1 — must accept current ToS first.
-    const tosOk =
-      profileGate?.tos_accepted_at &&
-      profileGate?.tos_version === CURRENT_TOS_VERSION;
-    if (!tosOk && url.pathname !== '/welcome/terms') {
-      throw redirect(303, '/welcome/terms');
-    }
-
-    // Step 2 — must have a display name.
-    if (tosOk && !profileGate?.display_name && url.pathname !== '/welcome/profile') {
-      throw redirect(303, '/welcome/profile');
-    }
-    // (Step 3 — first collection — is handled inside the /app routes
-    //  by the existing setup flow, so it stays right where it is.)
-  }
-
   // Profile, collections, counts, and pending friend requests in parallel.
+  // Collections are fetched here (rather than after the gate) so the step-3
+  // onboarding check below can reuse this result instead of querying twice.
   const [profile, collections, counts, pendingRequestCount, archivedRes] = await Promise.all([
     loadUserProfile(supabase, user.id),
     loadCollections(supabase, user.id),
@@ -54,6 +31,36 @@ export const load = async ({ url, locals: { safeGetSession, supabase } }) => {
       .eq('is_pending_delete', false)
   ]);
   const archivedCount = archivedRes?.count ?? 0;
+
+  // Onboarding gate. Every step re-checks on every load (not just once right
+  // after the previous step saves), so an interrupted flow — browser closed,
+  // cookies cleared, network hiccup — always resumes at the correct step
+  // instead of silently skipping ahead.
+  if (!isSignout) {
+    // Step 1 — must accept current ToS first.
+    const tosOk =
+      profile?.tos_accepted_at &&
+      profile?.tos_version === CURRENT_TOS_VERSION;
+    if (!tosOk && url.pathname !== '/welcome/terms') {
+      throw redirect(303, '/welcome/terms');
+    }
+
+    // Step 2 — must have a display name.
+    if (tosOk && !profile?.display_name && url.pathname !== '/welcome/profile') {
+      throw redirect(303, '/welcome/profile');
+    }
+
+    // Step 3 — must have at least one collection. Reuses the `collections`
+    // array already fetched above — no extra query.
+    if (
+      tosOk &&
+      profile?.display_name &&
+      collections.length === 0 &&
+      url.pathname !== '/app/setup'
+    ) {
+      throw redirect(303, '/app/setup');
+    }
+  }
 
   // Rates: only fetch if the user's display currency is non-EUR. Saves a
   // DB round-trip + (occasionally) an ECB call for users who don't need
