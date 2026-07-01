@@ -7,11 +7,15 @@ export const load = async ({ locals: { safeGetSession, supabase } }) => {
   if (!user) throw redirect(303, '/login');
 
   // If they've already accepted the current version, skip ahead.
-  const { data: profile } = await supabase
+  const { data: profile, error: loadError } = await supabase
     .from('users')
     .select('display_name, tos_accepted_at, tos_version')
     .eq('id', user.id)
     .maybeSingle();
+
+  if (loadError) {
+    console.error('[welcome/terms] load query failed for user', user.id, ':', loadError.message);
+  }
 
   if (profile?.tos_accepted_at && profile?.tos_version === CURRENT_TOS_VERSION) {
     throw redirect(303, profile.display_name ? '/app/all' : '/welcome/profile');
@@ -35,28 +39,40 @@ export const actions = {
       return fail(400, { error: 'You must agree to the Terms and Privacy Policy to continue.' });
     }
 
-    // .select().maybeSingle() after the update lets us confirm a row was
-    // actually changed. Supabase returns no error for an update that matches
-    // zero rows (e.g. an RLS policy silently blocking it) — checking for the
-    // returned row turns that into a visible error instead of a silent no-op
-    // that would otherwise bounce the user in a confusing loop between
-    // /welcome/terms and /welcome/profile.
-    const { data: updated, error } = await supabase
-      .from('users')
-      .update({
-        tos_accepted_at: new Date().toISOString(),
-        tos_version: CURRENT_TOS_VERSION
-      })
-      .eq('id', user.id)
-      .select('id, display_name')
-      .maybeSingle();
+    // A new signup's public.users row is created by a DB trigger on
+    // auth.users insert (see schema.sql: on_auth_user_created). That trigger
+    // is transactional and should have already run by the time a session
+    // exists — but as a safety net against any timing edge case, retry once
+    // after a short pause before treating a zero-row match as a real failure.
+    // (There's no INSERT policy for regular users on this table — only the
+    // trigger can create the row — so a client-side upsert isn't an option;
+    // a brief retry is the safe fallback.)
+    async function tryAccept() {
+      return supabase
+        .from('users')
+        .update({
+          tos_accepted_at: new Date().toISOString(),
+          tos_version: CURRENT_TOS_VERSION
+        })
+        .eq('id', user.id)
+        .select('id, display_name')
+        .maybeSingle();
+    }
+
+    let { data: updated, error } = await tryAccept();
+
+    if (!error && !updated) {
+      console.warn('[welcome/terms] first update matched no row for user', user.id, '— retrying once');
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      ({ data: updated, error } = await tryAccept());
+    }
 
     if (error) {
       console.error('[welcome/terms] update failed:', error.message);
       return fail(500, { error: 'Something went wrong. Please try again.' });
     }
     if (!updated) {
-      console.error('[welcome/terms] update matched no row for user', user.id);
+      console.error('[welcome/terms] update matched no row for user (after retry):', user.id);
       return fail(500, { error: 'Could not save your acceptance — please try again.' });
     }
 
